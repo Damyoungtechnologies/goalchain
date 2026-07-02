@@ -1,0 +1,8 @@
+node_modules/
+target/
+.anchor/
+.env
+backend/.env
+dist/
+.DS_Store
+*.log

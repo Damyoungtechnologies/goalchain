@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SettleLine Prediction Markets</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">SL</div>
+          <div>
+            <h1>SettleLine</h1>
+            <p>World Cup prediction markets powered by TxLINE data receipts</p>
+          </div>
+        </div>
+        <div class="status-strip" aria-live="polite">
+          <span class="status-pill" id="connectionStatus">Demo ready</span>
+          <span class="status-pill" id="settlementStatus">0 markets settled</span>
+        </div>
+      </header>
+
+      <section class="control-band" aria-label="TxLINE connection controls">
+        <label>
+          Network
+          <select id="networkSelect">
+            <option value="mainnet">Mainnet</option>
+            <option value="devnet" selected>Devnet</option>
+          </select>
+        </label>
+        <label>
+          Guest JWT
+          <input id="jwtInput" type="password" autocomplete="off" placeholder="Bearer token">
+        </label>
+        <label>
+          API token
+          <input id="apiTokenInput" type="password" autocomplete="off" placeholder="X-Api-Token">
+        </label>
+        <label>
+          Backend URL
+          <input id="backendUrlInput" type="url" autocomplete="off" placeholder="https://your-backend.example.com">
+        </label>
+        <div class="button-row">
+          <button id="connectScoresButton" class="secondary">Connect scores</button>
+          <button id="connectOddsButton" class="secondary">Connect odds</button>
+          <button id="demoButton">Run demo stream</button>
+          <button id="resetButton" class="ghost">Reset</button>
+        </div>
+      </section>
+
+      <section class="devnet-band" aria-label="Devnet settlement status">
+        <div>
+          <span class="eyebrow">Solana devnet</span>
+          <strong>Anchor escrow program + TxLINE proof gate</strong>
+        </div>
+        <dl>
+          <div>
+            <dt>TxLINE program</dt>
+            <dd>6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J</dd>
+          </div>
+          <div>
+            <dt>SettleLine program</dt>
+            <dd id="settlelineProgramId">Deploy with anchor deploy</dd>
+          </div>
+          <div>
+            <dt>Escrow model</dt>
+            <dd>Native SOL PDA vault in demo scaffold</dd>
+          </div>
+          <div>
+            <dt>Wallet</dt>
+            <dd id="walletStatus">Not connected</dd>
+          </div>
+        </dl>
+        <button id="walletButton" class="secondary">Connect wallet</button>
+      </section>
+
+      <section class="workspace-grid">
+        <aside class="fixture-rail" aria-label="Fixture list">
+          <div class="section-heading">
+            <span>Fixtures</span>
+            <strong id="fixtureCount">0</strong>
+          </div>
+          <div id="fixtureList" class="fixture-list"></div>
+        </aside>
+
+        <section class="match-panel" aria-label="Selected match">
+          <div class="scoreboard">
+            <div class="team-block">
+              <span id="homeName">Team A</span>
+              <strong id="homeScore">0</strong>
+            </div>
+            <div class="match-clock">
+              <span id="matchMinute">00'</span>
+              <strong id="matchState">Scheduled</strong>
+            </div>
+            <div class="team-block away">
+              <span id="awayName">Team B</span>
+              <strong id="awayScore">0</strong>
+            </div>
+          </div>
+
+          <div class="pitch-band" aria-label="Match event timeline">
+            <div class="pitch-line center"></div>
+            <div class="pitch-line left-box"></div>
+            <div class="pitch-line right-box"></div>
+            <div id="eventMarkers" class="event-markers"></div>
+          </div>
+
+          <div class="market-header">
+            <div>
+              <span class="eyebrow">Escrow markets</span>
+              <h2 id="marketTitle">Winner, totals, and props</h2>
+            </div>
+            <div class="escrow-box">
+              <span>Total escrow</span>
+              <strong id="totalEscrow">0 USDC</strong>
+            </div>
+          </div>
+
+          <div id="marketTable" class="market-table"></div>
+        </section>
+
+        <aside class="settlement-panel" aria-label="Settlement and validation">
+          <div class="section-heading">
+            <span>Receipt</span>
+            <strong id="receiptState">Pending</strong>
+          </div>
+          <div class="receipt-box">
+            <dl>
+              <div>
+                <dt>Fixture</dt>
+                <dd id="receiptFixture">-</dd>
+              </div>
+              <div>
+                <dt>Merkle root</dt>
+                <dd id="receiptRoot">-</dd>
+              </div>
+              <div>
+                <dt>Solana slot</dt>
+                <dd id="receiptSlot">-</dd>
+              </div>
+              <div>
+                <dt>Proof nodes</dt>
+                <dd id="receiptNodes">-</dd>
+              </div>
+            </dl>
+            <button id="validateButton" class="wide secondary">Validate receipt</button>
+            <pre id="validationLog" class="validation-log">No receipt submitted.</pre>
+          </div>
+
+          <div class="section-heading">
+            <span>Positions</span>
+            <strong id="walletBalance">1,000 USDC</strong>
+          </div>
+          <div id="positionsList" class="positions-list"></div>
+
+          <div class="section-heading">
+            <span>Event feed</span>
+            <strong id="eventCount">0</strong>
+          </div>
+          <ol id="eventFeed" class="event-feed"></ol>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
