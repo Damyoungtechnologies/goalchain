@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  firebaseUid    String       @unique
+  email          String       @unique
+  displayName    String?
+  walletAddress  String?
+  predictions    Prediction[]
+  transactions   Transaction[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Prediction {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  fixtureId       Int
+  marketId        String
+  outcome         String
+  stakeAmount     Float
+  potentialPayout Float
+  status          String       @default("open") // open, won, lost, cashed_out
+  txHash          String?      // Solana transaction hash for the stake
+  payoutTxHash    String?      // Solana transaction hash for the payout/cashout
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // stake, payout, cashout
+  amount      Float
+  txHash      String   @unique
+  status      String   @default("completed") // pending, completed, failed
+  createdAt   DateTime @default(now())
+}

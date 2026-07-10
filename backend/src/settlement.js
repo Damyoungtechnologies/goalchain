@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import pkg from "@coral-xyz/anchor";
+const { BN } = pkg;
 import { config } from "./config.js";
 
 export function deriveDailyScoresPda(targetTimestampMs) {
@@ -42,7 +43,7 @@ export function buildSettleInstructionPlan({ market, validation, settlementProof
     },
     args: {
       winningOutcome,
-      proof: settlementProof,
+      payload: settlementProof,
     },
   };
 }

@@ -7,7 +7,7 @@ export function txlineHeaders(extra = {}) {
 
   return {
     Authorization: `Bearer ${config.txline.jwt}`,
-    "X-Api-Token": config.txline.apiToken,
+    "x-api-token": config.txline.apiToken,
     ...extra,
   };
 }
@@ -38,6 +38,10 @@ export async function fetchFixturesSnapshot() {
 
 export async function fetchScoreSnapshot(fixtureId, asOf = Date.now()) {
   return txlineGet(`/scores/snapshot/${fixtureId}`, { asOf });
+}
+
+export async function getMarketsByFixture(fixtureId) {
+  return txlineGet(`/odds/snapshot/${fixtureId}`);
 }
 
 export async function fetchScoreValidation({ fixtureId, seq, statKey, statKey2 }) {
@@ -90,18 +94,54 @@ export function toProofNodes(nodes = []) {
 }
 
 export function buildSettlementProof(validation) {
+  const mapComparison = (c) => {
+    const map = { ">": "greaterThan", "<": "lessThan", "==": "equalTo", ">=": "greaterThan", "<=": "lessThan" };
+    const mapped = map[c] || c || "greaterThan";
+    return { [mapped]: {} };
+  };
+
+  const mapOp = (o) => {
+    if (!o) return null;
+    const map = { "+": "add", "-": "subtract" };
+    const mapped = map[o] || o || "add";
+    return { [mapped]: {} };
+  };
+
   return {
-    fixtureId: Number(validation.summary.fixtureId),
-    seq: Number(validation.seq || validation.summary.seq || 0),
-    statKey: Number(validation.statKey || validation.statToProve?.statKey || 0),
-    expectedValue: Number(validation.statToProve?.value ?? validation.value ?? 0),
-    eventStatRoot: toBytes32(validation.eventStatRoot),
-    receiptHash: toBytes32(validation.eventStatRoot),
-    proofNodes: [
-      ...toProofNodes(validation.statProof),
-      ...toProofNodes(validation.subTreeProof),
-      ...toProofNodes(validation.mainTreeProof),
-    ],
-    raw: validation,
+    ts: Number(validation.ts || Date.now()),
+    fixtureSummary: {
+      fixtureId: Number(validation.summary.fixtureId),
+      updateStats: {
+        updateCount: Number(validation.summary.updateStats?.updateCount || 0),
+        minTimestamp: Number(validation.summary.updateStats?.minTimestamp || 0),
+        maxTimestamp: Number(validation.summary.updateStats?.maxTimestamp || 0),
+      },
+      eventsSubTreeRoot: toBytes32(validation.summary.eventsSubTreeRoot || validation.eventStatRoot),
+    },
+    fixtureProof: toProofNodes(validation.subTreeProof),
+    mainTreeProof: toProofNodes(validation.mainTreeProof),
+    predicate: {
+      threshold: Number(validation.predicate?.threshold || 0),
+      comparison: mapComparison(validation.predicate?.comparison),
+    },
+    statA: {
+      statToProve: {
+        key: Number(validation.statToProve?.statKey || validation.statKey || 0),
+        value: Number(validation.statToProve?.value ?? validation.value ?? 0),
+        period: Number(validation.statToProve?.period || 0),
+      },
+      eventStatRoot: toBytes32(validation.eventStatRoot),
+      statProof: toProofNodes(validation.statProof),
+    },
+    statB: validation.statBToProve ? {
+      statToProve: {
+        key: Number(validation.statBToProve.statKey || 0),
+        value: Number(validation.statBToProve.value || 0),
+        period: Number(validation.statBToProve.period || 0),
+      },
+      eventStatRoot: toBytes32(validation.eventStatBRoot || validation.eventStatRoot),
+      statProof: toProofNodes(validation.statBProof || validation.statProof),
+    } : null,
+    op: mapOp(validation.op),
   };
 }

@@ -1,0 +1,169 @@
+import { db } from '../db.js'
+import fs from 'fs'
+import { Connection, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { getAssociatedTokenAddressSync, createTransferInstruction } from '@solana/spl-token'
+
+export async function stakePrediction(req, res) {
+  try {
+    const { userId, fixtureId, marketId, outcome, stakeAmount, potentialPayout, txHash, currency, tokenMint } = req.body
+
+    // Ensure user exists (Mock for now, normally would check Auth token)
+    let user = db.user.findUnique({ where: { id: userId } })
+    if (!user) {
+      user = db.user.create({ data: { id: userId, email: req.body.email || 'user@example.com', displayName: req.body.displayName || 'Anonymous User' } })
+    } else if (req.body.displayName) {
+      user = db.user.update({ where: { id: userId }, data: { displayName: req.body.displayName } })
+    }
+
+    // Enforce one active prediction per match
+    const existingPredictions = db.prediction.findMany({ where: { userId, fixtureId, status: 'open' } })
+    if (existingPredictions.length > 0) {
+      return res.status(400).json({ error: 'You already have an active prediction for this match. Please wait for it to settle or cash it out first.' })
+    }
+
+    const prediction = db.prediction.create({
+      data: {
+        userId: user.id,
+        fixtureId,
+        marketId,
+        outcome,
+        stakeAmount,
+        potentialPayout,
+        status: 'open',
+        txHash,
+        currency: currency || 'SOL',
+        tokenMint: tokenMint || null
+      }
+    })
+
+    // Update global market escrow
+    const markets = db.market.findMany();
+    let market = markets.find(m => m.fixtureId?.toString() === fixtureId?.toString());
+    
+    if (!market) {
+      market = db.market.create({
+        data: {
+          fixtureId: parseInt(fixtureId) || 0,
+          fixtureName: `Match #${fixtureId}`,
+          status: 'active',
+          escrow: 0
+        }
+      });
+    }
+
+    db.market.update({
+      where: { id: market.id },
+      data: { escrow: (market.escrow || 0) + stakeAmount }
+    });
+
+    db.transaction.create({
+      data: {
+        userId: user.id,
+        type: 'stake',
+        amount: stakeAmount,
+        txHash,
+        status: 'completed'
+      }
+    })
+
+    res.json(prediction)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Failed to place prediction' })
+  }
+}
+
+export async function cashoutPrediction(req, res) {
+  try {
+    const { predictionId, cashoutAmount, userPubKey } = req.body
+
+    if (!userPubKey) {
+      return res.status(400).json({ error: 'Missing user public key for payout' })
+    }
+
+    const prediction = db.prediction.findMany({ where: { id: predictionId } })[0]
+    if (!prediction) {
+      return res.status(404).json({ error: 'Prediction not found' })
+    }
+
+    let payoutTxHash = 'mock_tx_' + Date.now()
+
+    // Real Solana Payout from House Wallet
+    try {
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
+      const secret = JSON.parse(fs.readFileSync('houseWallet.json', 'utf8'))
+      const houseWallet = Keypair.fromSecretKey(new Uint8Array(secret))
+      
+      const transaction = new Transaction()
+      
+      if (!prediction.tokenMint) {
+        transaction.add(
+          SystemProgram.transfer({
+            fromPubkey: houseWallet.publicKey,
+            toPubkey: new PublicKey(userPubKey),
+            lamports: Math.floor(cashoutAmount * LAMPORTS_PER_SOL)
+          })
+        )
+      } else {
+        const mintPubKey = new PublicKey(prediction.tokenMint)
+        const userATA = getAssociatedTokenAddressSync(mintPubKey, new PublicKey(userPubKey))
+        const houseATA = getAssociatedTokenAddressSync(mintPubKey, houseWallet.publicKey)
+        
+        // Assume 6 decimals for Devnet USDC/USDT 
+        const amount = Math.floor(cashoutAmount * 1000000)
+        transaction.add(
+          createTransferInstruction(
+            houseATA,
+            userATA,
+            houseWallet.publicKey,
+            amount
+          )
+        )
+      }
+
+      payoutTxHash = await sendAndConfirmTransaction(connection, transaction, [houseWallet])
+    } catch (txError) {
+      console.error("Solana payout failed:", txError)
+      return res.status(500).json({ error: 'Smart contract payout failed: ' + txError.message })
+    }
+
+    const updatedPrediction = db.prediction.update({
+      where: { id: predictionId },
+      data: { status: 'cashed_out' }
+    })
+
+    db.transaction.create({
+      data: {
+        userId: updatedPrediction.userId,
+        type: 'cashout',
+        amount: cashoutAmount,
+        txHash: payoutTxHash,
+        status: 'completed'
+      }
+    })
+
+    res.json({ ...updatedPrediction, payoutTxHash })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Failed to cash out' })
+  }
+}
+
+export async function getMyPredictions(req, res) {
+  try {
+    const { userId } = req.query
+    const predictions = db.prediction.findMany({ where: { userId } })
+    const markets = db.market.findMany()
+    const enriched = predictions.map(p => {
+      const m = markets.find(m => m.fixtureId?.toString() === p.fixtureId?.toString())
+      return {
+        ...p,
+        fixtureName: m ? m.fixtureName : `Match #${p.fixtureId}`
+      }
+    })
+    res.json(enriched)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Failed to fetch predictions' })
+  }
+}

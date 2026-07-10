@@ -1,0 +1,73 @@
+{
+  "address": "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J",
+  "version": "0.1.0",
+  "name": "txline_oracle",
+  "instructions": [],
+  "accounts": [
+    {
+      "name": "PricingMatrix",
+      "discriminator": [
+        173,
+        13,
+        64,
+        22,
+        248,
+        77,
+        110,
+        106
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "PricingMatrix",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "rows",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ServiceRow"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ServiceRow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "row_id",
+            "type": "u16"
+          },
+          {
+            "name": "price_per_week_token",
+            "type": "u64"
+          },
+          {
+            "name": "sampling_interval_sec",
+            "type": "u32"
+          },
+          {
+            "name": "league_bundle_id",
+            "type": "i16"
+          },
+          {
+            "name": "market_bundle_id",
+            "type": "i16"
+          }
+        ]
+      }
+    }
+  ]
+}

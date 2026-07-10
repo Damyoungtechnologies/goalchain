@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{program::invoke, system_instruction};
+use anchor_lang::solana_program::program::invoke;
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 declare_id!("11111111111111111111111111111111");
 
@@ -39,8 +40,8 @@ pub mod settleline {
         market.total_stake = 0;
         market.winning_outcome = None;
         market.txline_receipt_hash = [0; 32];
+        market.mint = ctx.accounts.mint.key();
 
-        ctx.accounts.vault.market = market.key();
         Ok(())
     }
 
@@ -57,19 +58,14 @@ pub mod settleline {
         let clock = Clock::get()?;
         require!(clock.unix_timestamp < market.close_ts, SettlelineError::MarketClosed);
 
-        let transfer_ix = system_instruction::transfer(
-            &ctx.accounts.user.key(),
-            &ctx.accounts.vault.key(),
-            amount,
-        );
-        invoke(
-            &transfer_ix,
-            &[
-                ctx.accounts.user.to_account_info(),
-                ctx.accounts.vault.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_token_account.to_account_info(),
+            to: ctx.accounts.vault.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
 
         let position = &mut ctx.accounts.position;
         position.market = market.key();
@@ -120,7 +116,7 @@ pub mod settleline {
     pub fn settle_market(
         ctx: Context<SettleMarket>,
         winning_outcome: u8,
-        proof: TxlineScoreProof,
+        payload: ValidateStatPayload,
     ) -> Result<()> {
         let market = &mut ctx.accounts.market;
         require!(
@@ -131,26 +127,42 @@ pub mod settleline {
             (winning_outcome as usize) < market.outcomes.len(),
             SettlelineError::InvalidOutcome
         );
-        require!(proof.fixture_id == market.fixture_id, SettlelineError::FixtureMismatch);
-        require!(proof.proof_nodes.len() > 0, SettlelineError::MissingProof);
         require!(
-            proof.proof_nodes.len() <= TxlineScoreProof::MAX_PROOF_NODES,
-            SettlelineError::ProofTooLarge
+            (payload.fixture_summary.fixture_id as u64) == market.fixture_id,
+            SettlelineError::FixtureMismatch
         );
 
-        // Production path: replace this local receipt gate with a CPI into the
-        // TxLINE devnet program's validate_stat instruction using the same proof.
-        require!(proof.locally_consistent(), SettlelineError::InvalidTxlineProof);
+        let mut ix_data = vec![107, 197, 232, 90, 191, 136, 105, 185]; // validate_stat discriminator
+        payload.serialize(&mut ix_data)?;
+        
+        let ix = anchor_lang::solana_program::instruction::Instruction {
+            program_id: ctx.accounts.txline_program.key(),
+            accounts: vec![
+                anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                    ctx.accounts.daily_scores_merkle_roots.key(),
+                    false,
+                ),
+            ],
+            data: ix_data,
+        };
+        
+        invoke(
+            &ix,
+            &[
+                ctx.accounts.txline_program.to_account_info(),
+                ctx.accounts.daily_scores_merkle_roots.to_account_info(),
+            ],
+        )?;
 
         market.status = MarketStatus::Settled;
         market.winning_outcome = Some(winning_outcome);
-        market.txline_receipt_hash = proof.receipt_hash;
+        market.txline_receipt_hash = payload.stat_a.event_stat_root;
 
         emit!(MarketSettled {
             market: market.key(),
             fixture_id: market.fixture_id,
             winning_outcome,
-            txline_receipt_hash: proof.receipt_hash,
+            txline_receipt_hash: payload.stat_a.event_stat_root,
         });
 
         Ok(())
@@ -175,15 +187,20 @@ pub mod settleline {
             .checked_div(winning_pool as u128)
             .ok_or(SettlelineError::MathOverflow)? as u64;
 
-        let rent_floor = Rent::get()?.minimum_balance(Vault::SPACE);
-        let vault_lamports = ctx.accounts.vault.to_account_info().lamports();
-        require!(
-            vault_lamports.saturating_sub(rent_floor) >= payout,
-            SettlelineError::InsufficientVaultBalance
-        );
+        let market_key = market.key();
+        let bump = market.vault_bump;
+        let seeds = &[b"vault", market_key.as_ref(), &[bump]];
+        let signer = &[&seeds[..]];
 
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= payout;
-        **ctx.accounts.user.to_account_info().try_borrow_mut_lamports()? += payout;
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault.to_account_info(),
+            to: ctx.accounts.user_token_account.to_account_info(),
+            authority: ctx.accounts.vault.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, payout)?;
+
         position.claimed = true;
 
         emit!(PositionClaimed {
@@ -201,6 +218,7 @@ pub mod settleline {
 pub struct CreateMarket<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub mint: Account<'info, Mint>,
     #[account(
         init,
         payer = authority,
@@ -217,12 +235,15 @@ pub struct CreateMarket<'info> {
     #[account(
         init,
         payer = authority,
-        space = Vault::SPACE,
+        token::mint = mint,
+        token::authority = vault,
         seeds = [b"vault", market.key().as_ref()],
         bump
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -231,14 +252,15 @@ pub struct Deposit<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
     pub market: Account<'info, Market>,
     #[account(
         mut,
         seeds = [b"vault", market.key().as_ref()],
         bump = market.vault_bump,
-        has_one = market
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Account<'info, TokenAccount>,
     #[account(
         init_if_needed,
         payer = user,
@@ -252,6 +274,7 @@ pub struct Deposit<'info> {
         bump
     )]
     pub position: Account<'info, Position>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -278,14 +301,15 @@ pub struct SettleMarket<'info> {
 pub struct Claim<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
     pub market: Account<'info, Market>,
     #[account(
         mut,
         seeds = [b"vault", market.key().as_ref()],
         bump = market.vault_bump,
-        has_one = market
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: Account<'info, TokenAccount>,
     #[account(
         mut,
         seeds = [
@@ -297,6 +321,7 @@ pub struct Claim<'info> {
         bump = position.bump
     )]
     pub position: Account<'info, Position>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[account]
@@ -313,22 +338,14 @@ pub struct Market {
     pub total_stake: u64,
     pub winning_outcome: Option<u8>,
     pub txline_receipt_hash: [u8; 32],
+    pub mint: Pubkey,
 }
 
 impl Market {
     pub fn space(max_outcomes: usize, max_label_bytes: usize) -> usize {
         8 + 32 + 8 + 1 + 8 + 1 + 1 + 1 + 4 + max_outcomes * (4 + max_label_bytes) + 4
-            + max_outcomes * 8 + 8 + 2 + 32
+            + max_outcomes * 8 + 8 + 2 + 32 + 32
     }
-}
-
-#[account]
-pub struct Vault {
-    pub market: Pubkey,
-}
-
-impl Vault {
-    pub const SPACE: usize = 8 + 32;
 }
 
 #[account]
@@ -372,34 +389,68 @@ pub enum MarketStatus {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct TxlineScoreProof {
-    pub fixture_id: u64,
-    pub seq: u64,
-    pub stat_key: u16,
-    pub expected_value: i64,
-    pub event_stat_root: [u8; 32],
-    pub receipt_hash: [u8; 32],
-    pub proof_nodes: Vec<TxlineProofNode>,
-}
-
-impl TxlineScoreProof {
-    pub const MAX_PROOF_NODES: usize = 32;
-
-    pub fn locally_consistent(&self) -> bool {
-        self.fixture_id > 0
-            && self.seq > 0
-            && self.stat_key > 0
-            && self.event_stat_root != [0; 32]
-            && self.receipt_hash != [0; 32]
-            && !self.proof_nodes.is_empty()
-            && self.proof_nodes.len() <= Self::MAX_PROOF_NODES
-    }
+pub struct ScoresUpdateStats {
+    pub update_count: i32,
+    pub min_timestamp: i64,
+    pub max_timestamp: i64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct TxlineProofNode {
+pub struct ScoresBatchSummary {
+    pub fixture_id: i64,
+    pub update_stats: ScoresUpdateStats,
+    pub events_sub_tree_root: [u8; 32],
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub enum Comparison {
+    GreaterThan,
+    LessThan,
+    EqualTo,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub enum BinaryExpression {
+    Add,
+    Subtract,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct TraderPredicate {
+    pub threshold: i32,
+    pub comparison: Comparison,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ScoreStat {
+    pub key: u32,
+    pub value: i32,
+    pub period: i32,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct StatTerm {
+    pub stat_to_prove: ScoreStat,
+    pub event_stat_root: [u8; 32],
+    pub stat_proof: Vec<ProofNode>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ProofNode {
     pub hash: [u8; 32],
     pub is_right_sibling: bool,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ValidateStatPayload {
+    pub ts: i64,
+    pub fixture_summary: ScoresBatchSummary,
+    pub fixture_proof: Vec<ProofNode>,
+    pub main_tree_proof: Vec<ProofNode>,
+    pub predicate: TraderPredicate,
+    pub stat_a: StatTerm,
+    pub stat_b: Option<StatTerm>,
+    pub op: Option<BinaryExpression>,
 }
 
 #[event]
