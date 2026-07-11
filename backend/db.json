@@ -61,6 +61,20 @@
       "createdAt": "2026-07-06T22:20:53.649Z",
       "userPubKey": "9BH833UhA8bkQjQqTDhAbn9XaTyL7PAZw7EyvL2u8FYS",
       "txHash": "2sYYUFEvetyxYfETJxHnXYiEriovyxpjTxtwJW3RRA4RysXx7bYr7qjw8rUJXsByXmVRbqVhiYNSM9hy56NbDrbP"
+    },
+    {
+      "id": "6e1f82da-82fe-4893-8ee8-155d93abde53",
+      "userId": "1t8JvYiNSOgBVVJny3oTt0GQMmp2",
+      "fixtureId": "18213979",
+      "marketId": "1837347585:00003:000147-10021-stab",
+      "outcome": "Norway",
+      "stakeAmount": 4,
+      "potentialPayout": 19.8,
+      "status": "open",
+      "txHash": "47whrTo8itLbmPrJoYz5NDbttAk8R2JRPYXz6dUNXfjHrFBF7uHfx8uiLDbGQNoSgmQ8V5L34iTWdcfJrovkSiaK",
+      "currency": "SOL",
+      "tokenMint": null,
+      "createdAt": "2026-07-11T20:10:37.162Z"
     }
   ],
   "transactions": [
@@ -185,6 +199,15 @@
       "currency": "SOL",
       "txHash": "2sYYUFEvetyxYfETJxHnXYiEriovyxpjTxtwJW3RRA4RysXx7bYr7qjw8rUJXsByXmVRbqVhiYNSM9hy56NbDrbP",
       "createdAt": "2026-07-10T21:28:19.166Z"
+    },
+    {
+      "id": "afacdef0-3b98-4f82-a38c-7c21f5768043",
+      "userId": "1t8JvYiNSOgBVVJny3oTt0GQMmp2",
+      "type": "stake",
+      "amount": 4,
+      "txHash": "47whrTo8itLbmPrJoYz5NDbttAk8R2JRPYXz6dUNXfjHrFBF7uHfx8uiLDbGQNoSgmQ8V5L34iTWdcfJrovkSiaK",
+      "status": "completed",
+      "createdAt": "2026-07-11T20:10:37.197Z"
     }
   ],
   "markets": [
@@ -225,7 +248,7 @@
       "fixtureId": 18213979,
       "fixtureName": "Norway vs England",
       "status": "active",
-      "escrow": 0,
+      "escrow": 4,
       "createdAt": "2026-07-06T18:00:20.347Z"
     },
     {
