@@ -112,7 +112,7 @@ export default function PredictionPage() {
     enabled: !!fixtureId
   })
 
-  const fixture = fixtures?.find((f) => f.id === fixtureId)
+  const fixture = fixtures?.find((f) => String(f.id) === String(fixtureId))
 
   const markets = (rawTxlineMarkets || []).map((m: any) => {
     let name = m.SuperOddsType || 'Unknown Market'
@@ -216,7 +216,7 @@ export default function PredictionPage() {
             No live odds currently available from TxLINE for this match.
           </div>
         ) : (
-          markets.map((market) => (
+          markets.map((market: any) => (
             <motion.div
               key={market.id}
               initial={{ opacity: 0, y: 10 }}
@@ -234,7 +234,7 @@ export default function PredictionPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {market.outcomes.map((outcome) => (
+                {market.outcomes.map((outcome: any) => (
                   <button
                     key={outcome.label}
                     onClick={() => {

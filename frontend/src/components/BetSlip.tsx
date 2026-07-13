@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { SystemProgram, Transaction, VersionedTransaction, TransactionMessage, PublicKey, LAMPORTS_PER_SOL, Keypair } from '@solana/web3.js'
 import { useNotifications } from '../contexts/NotificationContext'
-import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync, createTransferInstruction } from '@solana/spl-token'
 
 const CURRENCIES = {
   SOL: { mint: null, decimals: 9, symbol: 'SOL' },
@@ -112,7 +112,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
           blockhash: latestBlockhash.blockhash,
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
         }, 'processed')
-      } catch (err) {
+      } catch (err: any) {
         console.error("Wallet error:", err);
         throw new Error(err.message || 'Transaction failed in wallet');
       }
@@ -148,7 +148,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
       setTimeout(() => {
         window.location.href = '/predictions'
       }, 1000)
-    } catch (error) {
+    } catch (error: any) {
       addNotification('error', error.message || 'An error occurred')
     } finally {
       setLoading(false)

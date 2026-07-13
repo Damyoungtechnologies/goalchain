@@ -28,7 +28,7 @@ const queryClient = new QueryClient({
 const network = WalletAdapterNetwork.Devnet
 const endpoint = clusterApiUrl(network)
 
-const wallets = []
+const wallets: any[] = []
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
