@@ -21,6 +21,12 @@ export async function stakePrediction(req, res) {
       return res.status(400).json({ error: 'You already have an active prediction for this match. Please wait for it to settle or cash it out first.' })
     }
 
+    // Enforce match hasn't started yet
+    const fixture = db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) } })
+    if (fixture && (fixture.GameState === 2 || fixture.GameState === 3 || fixture.StartTime <= Date.now())) {
+      return res.status(400).json({ error: 'Predictions are locked. This match has already started or finished.' })
+    }
+
     const prediction = db.prediction.create({
       data: {
         userId: user.id,

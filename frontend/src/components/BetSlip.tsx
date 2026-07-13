@@ -95,13 +95,10 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
         )
       }
 
-      const messageV0 = new TransactionMessage({
-        payerKey: publicKey,
-        recentBlockhash: latestBlockhash.blockhash,
-        instructions,
-      }).compileToV0Message()
-
-      const transaction = new VersionedTransaction(messageV0)
+      const transaction = new Transaction({
+        feePayer: publicKey,
+        recentBlockhash: latestBlockhash.blockhash
+      }).add(...instructions)
 
       addNotification('info', `Please approve the transaction in your wallet...`)
       

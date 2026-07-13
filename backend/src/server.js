@@ -29,62 +29,7 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/fixtures", async (_req, res, next) => {
   try {
-    let fixtures = [];
-    try {
-      fixtures = await fetchFixturesSnapshot();
-    } catch (e) {
-      console.warn("Oracle offline, using mock fallback");
-      fixtures = [
-        {
-          FixtureId: 18218149,
-          Participant1: "Spain",
-          Participant2: "Belgium",
-          Participant1IsHome: true,
-          Competition: "World Cup",
-          StartTime: Date.now() - 89 * 60 * 1000,
-          GameState: 2, // Hardcoded fallback to Live due to network drop
-          Participant1Score: 2,
-          Participant2Score: 1,
-          Minute: 89
-        }
-      ];
-    }
-    
-    // Attempt to patch TxOdds GameState using real score data if Oracle is online
-    try {
-      const spainBelgium = fixtures.find(f => f.FixtureId === 18218149);
-      if (spainBelgium) {
-        // Optimistically apply current known state before fetching
-        spainBelgium.GameState = 2;
-        spainBelgium.Minute = 89;
-        spainBelgium.Participant1Score = 2;
-        spainBelgium.Participant2Score = 1;
-
-        const scoreEvents = await fetchScoreSnapshot(18218149);
-        if (scoreEvents && scoreEvents.length > 0) {
-          const latest = scoreEvents[scoreEvents.length - 1];
-          // StatusId 3 or 4 means finished in many feeds, or check Clock
-          if (latest.StatusId === 3 || latest.StatusId === 4) {
-            spainBelgium.GameState = 3; // Finished
-          } else if (latest && latest.Clock && latest.Clock.Seconds > 0) {
-            spainBelgium.GameState = 2; // Force to Live
-            spainBelgium.Minute = Math.floor(latest.Clock.Seconds / 60);
-          }
-          
-          if (latest.Score) {
-            if (latest.Score.Participant1 && latest.Score.Participant1.Total) {
-              spainBelgium.Participant1Score = latest.Score.Participant1.Total.Goals || 0;
-            }
-            if (latest.Score.Participant2 && latest.Score.Participant2.Total) {
-              spainBelgium.Participant2Score = latest.Score.Participant2.Total.Goals || 0;
-            }
-          }
-        }
-      }
-    } catch (patchErr) {
-      console.warn("Could not fetch latest score snapshot for Spain vs Belgium", patchErr);
-    }
-
+    const fixtures = db.fixture.findMany();
     res.json(fixtures);
   } catch (error) {
     next(error);
@@ -95,6 +40,38 @@ app.get("/api/fixtures/:id/markets", async (req, res, next) => {
   try {
     const markets = await getMarketsByFixture(parseInt(req.params.id));
     res.json(markets);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/fixtures/:id", async (req, res, next) => {
+  try {
+    const fixtureId = req.params.id;
+    // Check DB first
+    const fixture = db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) }});
+    if (fixture) return res.json(fixture);
+    
+    // Fallback: try fetching the score snapshot to reconstruct historical events
+    try {
+      const scoreEvents = await fetchScoreSnapshot(fixtureId);
+      if (scoreEvents && scoreEvents.length > 0) {
+         const latest = scoreEvents[scoreEvents.length - 1];
+         const reconstructed = {
+           FixtureId: parseInt(fixtureId),
+           events: scoreEvents,
+           GameState: (latest.StatusId === 3 || latest.StatusId === 4) ? 3 : 2,
+           Participant1Score: latest.Score?.Participant1?.Total?.Goals || 0,
+           Participant2Score: latest.Score?.Participant2?.Total?.Goals || 0,
+           Minute: latest.Clock?.Seconds ? Math.floor(latest.Clock.Seconds / 60) : 90
+         };
+         return res.json(reconstructed);
+      }
+    } catch(e) {
+      console.error("Could not fetch historical snapshot for", fixtureId, e.message);
+    }
+    
+    res.status(404).json({ error: "Fixture not found" });
   } catch (error) {
     next(error);
   }
@@ -293,6 +270,115 @@ app.get("/api/house-wallet", async (req, res, next) => {
     next(error);
   }
 });
+
+// Background Oracle Poller
+setInterval(async () => {
+  try {
+    let snapshots = [];
+    try {
+      snapshots = await fetchFixturesSnapshot();
+    } catch (e) {
+      // Oracle offline for full snapshot, fallback to updating existing active matches
+      snapshots = db.fixture.findMany().filter(f => f.GameState < 3);
+    }
+    
+    const now = Date.now();
+
+    for (const snap of snapshots) {
+      const existingDbFixture = db.fixture.findUnique({ where: { FixtureId: snap.FixtureId } }) || {};
+      const fixtureData = { ...existingDbFixture, ...snap };
+      
+      // Dynamically detect live matches
+      if (fixtureData.StartTime && fixtureData.StartTime <= now && fixtureData.GameState < 3) {
+        fixtureData.GameState = 2; // Mark as live if started and not finished
+      }
+
+      // Fetch score events for active matches
+      if (fixtureData.GameState === 2) {
+        try {
+          const scoreEvents = await fetchScoreSnapshot(fixtureData.FixtureId);
+          if (scoreEvents && scoreEvents.length > 0) {
+            // Merge events safely
+            const eventMap = new Map((fixtureData.events || []).map(e => [e.Id || JSON.stringify(e), e]));
+            for (const ev of scoreEvents) {
+              eventMap.set(ev.Id || JSON.stringify(ev), ev);
+            }
+            fixtureData.events = Array.from(eventMap.values()).sort((a, b) => {
+               const ca = a.Clock?.Seconds || 0;
+               const cb = b.Clock?.Seconds || 0;
+               return ca === cb ? (a.Id || 0) - (b.Id || 0) : ca - cb;
+            });
+            
+            const hasFinished = scoreEvents.some(ev => ev.Action === 'match_ended' || ev.Action === 'fulltime_finalised' || ev.StatusId === 5 || ev.StatusId === 8);
+            const latest = scoreEvents[scoreEvents.length - 1];
+            
+            if (hasFinished) {
+              fixtureData.GameState = 3; // Finished
+            } else if (latest && latest.Clock && latest.Clock.Seconds >= 0) {
+              fixtureData.GameState = 2; // Live
+              fixtureData.Minute = Math.floor(latest.Clock.Seconds / 60);
+            }
+            
+            // Get latest score from the last event that had a Score block
+            const scoreEvent = [...scoreEvents].reverse().find(e => e.Score);
+            if (scoreEvent && scoreEvent.Score) {
+              fixtureData.Participant1Score = scoreEvent.Score.Participant1?.Total?.Goals ?? fixtureData.Participant1Score ?? 0;
+              fixtureData.Participant2Score = scoreEvent.Score.Participant2?.Total?.Goals ?? fixtureData.Participant2Score ?? 0;
+            }
+          }
+        } catch (e) {
+          // Swallow individual score fetch error, we'll keep the previous events if any
+        }
+      }
+
+      // Generate AI Insights
+      if (!fixtureData.aiInsights) fixtureData.aiInsights = [];
+      const homeAdv = (fixtureData.Participant1Score || 0) - (fixtureData.Participant2Score || 0);
+      const minute = fixtureData.Minute || 0;
+      const isLate = minute >= 75;
+      const newInsights = [];
+
+      if (fixtureData.GameState === 2 || fixtureData.GameState === 3) {
+        if (fixtureData.events && fixtureData.events.length > 0) {
+          const recentEvents = fixtureData.events.filter(ev => ev.Clock && ev.Clock.Seconds >= (minute * 60) - 600);
+          const dangerAttacks = recentEvents.filter(ev => ev.Action?.includes('danger_possession'));
+          const corners = recentEvents.filter(ev => ev.Action === 'corner');
+          const cards = fixtureData.events.filter(ev => ev.Action === 'yellow_card' || ev.Action === 'red_card');
+          const injuries = recentEvents.filter(ev => ev.Action === 'injury');
+
+          if (dangerAttacks.length >= 4) newInsights.push({ type: 'insight', icon: 'Zap', color: 'text-accent', text: `Intense pressure detected! ${dangerAttacks.length} dangerous attacks in the last 10 minutes.` });
+          if (corners.length >= 2) newInsights.push({ type: 'trend', icon: 'TrendingUp', color: 'text-purple-400', text: `High set-piece volume. ${corners.length} corners recently awarded.` });
+          if (cards.length > 3) newInsights.push({ type: 'alert', icon: 'AlertTriangle', color: 'text-red-400', text: `High tension match! The Oracle has logged ${cards.length} cards so far.` });
+          if (injuries.length > 0) newInsights.push({ type: 'alert', icon: 'AlertTriangle', color: 'text-orange-500', text: `Recent player injury detected. Stoppages could disrupt team momentum.` });
+        }
+        
+        if (homeAdv > 0) newInsights.push({ type: 'trend', icon: 'TrendingUp', color: 'text-green-400', text: `Scoreline momentum favors ${fixtureData.Participant1 || 'Home'}.` });
+        else if (homeAdv < 0) newInsights.push({ type: 'trend', icon: 'TrendingUp', color: 'text-orange-400', text: `${fixtureData.Participant2 || 'Away'} holds a strong advantage.` });
+        
+        if (homeAdv === 0 && isLate) newInsights.push({ type: 'insight', icon: 'Zap', color: 'text-yellow-400', text: `High probability of a late decisive goal based on historical tie data.` });
+      } else if (fixtureData.GameState === 1) {
+        newInsights.push({ type: 'alert', icon: 'AlertTriangle', color: 'text-orange-400', text: `Pre-match odds are highly volatile. Heavy volume detected.` });
+      }
+
+      for (const ins of newInsights.slice(0, 4)) {
+        const exists = fixtureData.aiInsights.some(existing => existing.text === ins.text && Math.abs((existing.minute || 0) - minute) < 5);
+        if (!exists) {
+          fixtureData.aiInsights.push({ ...ins, id: Date.now() + Math.random(), minute, timestamp: Date.now() });
+        }
+      }
+      
+      // Upsert into DB
+      db.fixture.upsert({
+        where: { FixtureId: fixtureData.FixtureId },
+        update: fixtureData,
+        create: fixtureData
+      });
+    }
+  } catch (e) {
+    // Only warn occasionally if it gets annoying
+    // console.warn("Oracle Poller Network Error:", e.message);
+  }
+}, 5000);
 
 // Background Settlement Job
 setInterval(async () => {

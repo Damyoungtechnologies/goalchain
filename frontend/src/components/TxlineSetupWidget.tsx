@@ -74,13 +74,10 @@ export function TxlineSetupWidget() {
       ixs.push(subIx)
 
       const latestBlockhash = await connection.getLatestBlockhash()
-      const messageV0 = new TransactionMessage({
-        payerKey: publicKey,
-        recentBlockhash: latestBlockhash.blockhash,
-        instructions: ixs,
-      }).compileToV0Message()
-
-      const transaction = new VersionedTransaction(messageV0)
+      const transaction = new Transaction({
+        feePayer: publicKey,
+        recentBlockhash: latestBlockhash.blockhash
+      }).add(...ixs)
 
       setStatus('Simulating transaction...')
       const sim = await connection.simulateTransaction(transaction)

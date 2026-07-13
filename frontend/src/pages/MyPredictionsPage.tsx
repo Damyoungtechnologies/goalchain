@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion'
-import { CheckCircle, XCircle, Clock, Target, AlertCircle, ShieldCheck } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CheckCircle, XCircle, Clock, Target, AlertCircle, ShieldCheck, Activity, X, Bot } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
@@ -7,7 +7,8 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import SettlementProofViewer from '../components/SettlementProofViewer'
-import LiveMarketReplay from '../components/LiveMarketReplay'
+import LiveMatchFeed from '../components/LiveMatchFeed'
+import MarketAssistant from '../components/MarketAssistant'
 import { useState } from 'react'
 
 const statusConfig = {
@@ -26,6 +27,8 @@ export default function MyPredictionsPage() {
   
   const [proofViewerOpen, setProofViewerOpen] = useState(false)
   const [selectedPrediction, setSelectedPrediction] = useState<any>(null)
+  const [activeLiveFeed, setActiveLiveFeed] = useState<any>(null)
+  const [activeAI, setActiveAI] = useState<any>(null)
 
   const { data: positions = [], isLoading } = useQuery({
     queryKey: ['predictions', user?.uid],
@@ -39,25 +42,59 @@ export default function MyPredictionsPage() {
     refetchInterval: 5000 // Poll for updates
   })
 
-  const { data: fixtures = [] } = useQuery({
+  const { data: fixtures = [], isLoading: isFixturesLoading } = useQuery({
     queryKey: ['fixtures'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:8787/api/fixtures')
-      if (!response.ok) throw new Error('Network response was not ok')
-      const data = await response.json()
-      const fixturesArray = Array.isArray(data) ? data : data.value || []
-      return fixturesArray.map((f: any) => ({
+      // Use standard relative fetch to support both dev and prod, but fallback to localhost:8787 for dev
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8787' : '';
+      const res = await fetch(`${apiUrl}/api/fixtures`);
+      let data = await res.json();
+      
+      // Some fixtures might have dropped off the active feed if they are finished.
+      // We will try to fetch them individually if they are missing but we have a prediction for them.
+      const missingFixtureIds = positions
+        .map((p: any) => p.fixtureId)
+        .filter((fid: string) => !data.some((f: any) => f.FixtureId?.toString() === fid));
+
+      const historicalFixtures = await Promise.all(
+        missingFixtureIds.map(async (fid: string) => {
+          try {
+            const hRes = await fetch(`${apiUrl}/api/fixtures/${fid}`);
+            if (hRes.ok) {
+              const hData = await hRes.json();
+              // Try to find the team names from the position
+              const pos = positions.find((p: any) => p.fixtureId === fid);
+              if (pos && pos.fixtureName && pos.fixtureName.includes(' vs ')) {
+                const [h, a] = pos.fixtureName.split(' vs ');
+                hData.Participant1 = h;
+                hData.Participant2 = a;
+              }
+              return hData;
+            }
+          } catch (e) {
+            console.error('Failed to fetch historical fixture', fid);
+          }
+          return null;
+        })
+      );
+
+      data = [...data, ...historicalFixtures.filter(f => f !== null)];
+
+      return data.map((f: any) => ({
         id: f.FixtureId?.toString() || Math.random().toString(),
-        home: f.Participant1IsHome ? f.Participant1 : f.Participant2,
-        away: f.Participant1IsHome ? f.Participant2 : f.Participant1,
+        home: f.Participant1 || 'Home',
+        away: f.Participant2 || 'Away',
         homeScore: f.Participant1Score || 0,
         awayScore: f.Participant2Score || 0,
-        minute: f.Minute || 0,
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',
-      }))
+        minute: f.Minute || 0,
+        events: f.events || [],
+        raw: f
+      }));
     },
-    refetchInterval: 10000,
-  })
+    refetchInterval: 5000,
+    enabled: positions.length > 0
+  });
 
   const cashoutMutation = useMutation({
     mutationFn: async ({ predictionId, amount }: { predictionId: string, amount: number }) => {
@@ -256,12 +293,25 @@ export default function MyPredictionsPage() {
                       )}
                     </div>
                   </div>
+                  {fixture?.events && fixture.events.length > 0 && (
+                    <div className="mt-4 border-t border-white/5 pt-4 flex flex-col md:flex-row gap-4">
+                      <button
+                        onClick={() => setActiveLiveFeed(fixture)}
+                        className="flex-1 py-2 bg-accent/10 hover:bg-accent/20 text-accent font-bold rounded-lg border border-accent/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Activity className="w-5 h-5 animate-pulse" />
+                        Live Match Events
+                      </button>
+                      <button
+                        onClick={() => setActiveAI(fixture)}
+                        className="flex-1 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold rounded-lg border border-purple-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Bot className="w-5 h-5" />
+                        AI Analysis Log
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
-                
-                {/* Live Market Replay logic */}
-                {(position.status === 'won' || position.status === 'lost') && fixture && (
-                  <LiveMarketReplay prediction={position} fixture={fixture} />
-                )}
               </div>
             )
           })
@@ -273,6 +323,63 @@ export default function MyPredictionsPage() {
         onClose={() => setProofViewerOpen(false)} 
         prediction={selectedPrediction} 
       />
+      <AnimatePresence>
+        {activeLiveFeed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-2xl max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden rounded-xl"
+            >
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  onClick={() => setActiveLiveFeed(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
+                <LiveMatchFeed events={activeLiveFeed.events} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeAI && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  onClick={() => setActiveAI(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <MarketAssistant fixture={activeAI} showHistory={true} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

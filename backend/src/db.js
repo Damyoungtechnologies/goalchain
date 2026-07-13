@@ -7,16 +7,29 @@ const DB_FILE = path.join(__dirname, '..', 'db.json')
 
 // Initialize DB if not exists
 if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], predictions: [], transactions: [], markets: [] }, null, 2))
+  fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], predictions: [], transactions: [], markets: [], fixtures: [] }, null, 2))
 }
 
 export function readDb() {
-  const data = fs.readFileSync(DB_FILE, 'utf-8')
-  return JSON.parse(data)
+  try {
+    const data = fs.readFileSync(DB_FILE, 'utf-8')
+    const parsed = JSON.parse(data)
+    return {
+      users: parsed.users || [],
+      predictions: parsed.predictions || [],
+      transactions: parsed.transactions || [],
+      markets: parsed.markets || [],
+      fixtures: parsed.fixtures || []
+    }
+  } catch (e) {
+    return { users: [], predictions: [], transactions: [], markets: [], fixtures: [] }
+  }
 }
 
 export function writeDb(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2))
+  const tmp = DB_FILE + '.tmp'
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2))
+  fs.renameSync(tmp, DB_FILE)
 }
 
 export const db = {
@@ -93,6 +106,26 @@ export const db = {
           d.markets[index] = { ...d.markets[index], ...data }
           writeDb(d)
           return d.markets[index]
+        }
+      }
+    }
+  },
+  get fixture() {
+    return {
+      findUnique: ({ where } = {}) => (readDb().fixtures || []).find(f => !where || Object.keys(where).every(k => f[k] === where[k])),
+      findMany: ({ where } = {}) => (readDb().fixtures || []).filter(f => !where || Object.keys(where).every(k => f[k] === where[k])),
+      upsert: ({ where, update, create }) => {
+        const d = readDb()
+        if (!d.fixtures) d.fixtures = []
+        const index = d.fixtures.findIndex(f => Object.keys(where).every(k => f[k] === where[k]))
+        if (index > -1) {
+          d.fixtures[index] = { ...d.fixtures[index], ...update }
+          writeDb(d)
+          return d.fixtures[index]
+        } else {
+          d.fixtures.push(create)
+          writeDb(d)
+          return create
         }
       }
     }

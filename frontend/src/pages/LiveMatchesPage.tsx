@@ -49,7 +49,8 @@ export default function LiveMatchesPage() {
         competition: f.Competition,
         stage: 'Group Stage', // default or map if available
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',
-        startTime: f.StartTime
+        startTime: f.StartTime,
+        aiInsights: f.aiInsights || []
       }))
     },
     refetchInterval: 10000, // Refetch every 10 seconds
@@ -236,6 +237,13 @@ export default function LiveMatchesPage() {
                           className="bg-white/10 text-text-secondary cursor-not-allowed inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg"
                         >
                           <span>Predicted</span>
+                        </button>
+                      ) : fixture.state !== 'Scheduled' ? (
+                        <button
+                          disabled
+                          className="bg-white/5 text-text-secondary cursor-not-allowed inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg"
+                        >
+                          <span>Locked</span>
                         </button>
                       ) : (
                         <Link
