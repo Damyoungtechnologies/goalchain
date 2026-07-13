@@ -6,6 +6,7 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 // Removed legacy wallet adapters in favor of Wallet Standard
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { clusterApiUrl } from '@solana/web3.js'
 import App from './App'
 import './index.css'
@@ -28,7 +29,10 @@ const queryClient = new QueryClient({
 const network = WalletAdapterNetwork.Devnet
 const endpoint = clusterApiUrl(network)
 
-const wallets: any[] = []
+const wallets = [
+  new PhantomWalletAdapter(),
+  new SolflareWalletAdapter()
+]
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
