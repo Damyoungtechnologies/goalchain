@@ -49,7 +49,7 @@ export default function LeaderboardPage() {
                     <Medal className="w-6 h-6 text-slate-800" />
                   </div>
                   <div className="text-sm font-bold text-text truncate w-full text-center">{leaderboardData[1].username || leaderboardData[1].wallet.slice(0,6)+'...'}</div>
-                  <div className="text-xs text-accent font-bold mb-2">{leaderboardData[1].profit} USDC</div>
+                  <div className="text-xs text-accent font-bold mb-2">{leaderboardData[1].profit} SOL</div>
                   <div className="w-full h-32 bg-slate-800/80 rounded-t-lg border-t-4 border-slate-400 flex justify-center pt-2 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-slate-400/20 to-transparent" />
                     <span className="text-2xl font-bold text-slate-400/50">2</span>
@@ -67,7 +67,7 @@ export default function LeaderboardPage() {
                     <Trophy className="w-8 h-8 text-yellow-800" />
                   </div>
                   <div className="text-base font-bold text-text truncate w-full text-center">{leaderboardData[0].username || leaderboardData[0].wallet.slice(0,6)+'...'}</div>
-                  <div className="text-sm text-accent font-bold mb-2">{leaderboardData[0].profit} USDC</div>
+                  <div className="text-sm text-accent font-bold mb-2">{leaderboardData[0].profit} SOL</div>
                   <div className="w-full h-40 bg-yellow-900/40 rounded-t-lg border-t-4 border-yellow-400 flex justify-center pt-2 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/20 to-transparent" />
                     <span className="text-3xl font-bold text-yellow-400/50">1</span>
@@ -85,7 +85,7 @@ export default function LeaderboardPage() {
                     <Award className="w-6 h-6 text-amber-100" />
                   </div>
                   <div className="text-sm font-bold text-text truncate w-full text-center">{leaderboardData[2].username || leaderboardData[2].wallet.slice(0,6)+'...'}</div>
-                  <div className="text-xs text-accent font-bold mb-2">{leaderboardData[2].profit} USDC</div>
+                  <div className="text-xs text-accent font-bold mb-2">{leaderboardData[2].profit} SOL</div>
                   <div className="w-full h-24 bg-amber-900/60 rounded-t-lg border-t-4 border-amber-700 flex justify-center pt-2 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-amber-700/20 to-transparent" />
                     <span className="text-2xl font-bold text-amber-700/50">3</span>
@@ -135,7 +135,7 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="text-right py-4 px-6">
-                        <div className="font-bold text-accent">{entry.profit} USDC</div>
+                        <div className="font-bold text-accent">{entry.profit} SOL</div>
                       </td>
                       <td className="text-right py-4 px-6">
                         <div className="flex items-center justify-end space-x-1">

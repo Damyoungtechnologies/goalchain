@@ -95,7 +95,7 @@ export default function SettlementExplorerPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-accent">
-                      {settlement.amount} USDC
+                      {settlement.amount} SOL
                     </div>
                     <div className="text-sm text-text-secondary">Payout</div>
                   </div>
