@@ -27,7 +27,7 @@ interface BetSlipProps {
 
 export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: BetSlipProps) {
   const { user, signInWithGoogle } = useAuth()
-  const { connected, publicKey, sendTransaction } = useWallet()
+  const { connected, publicKey, sendTransaction, signTransaction } = useWallet()
   const { connection } = useConnection()
   const { addNotification } = useNotifications()
   const [stake, setStake] = useState<string>('')
@@ -100,12 +100,18 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
         recentBlockhash: latestBlockhash.blockhash
       }).add(...instructions)
 
-      addNotification('info', `Please approve the transaction in your wallet...`)
-      
       let signature = '';
       try {
-        // Enforcing strict on-chain validation so the transaction isn't dropped silently
-        signature = await sendTransaction(transaction, connection)
+        if (signTransaction) {
+          addNotification('info', `Please approve the transaction in your wallet...`)
+          const signedTx = await signTransaction(transaction)
+          addNotification('info', 'Sending to Solana network...')
+          signature = await connection.sendRawTransaction(signedTx.serialize())
+        } else {
+          addNotification('info', `Please approve the transaction in your wallet...`)
+          signature = await sendTransaction(transaction, connection)
+        }
+        
         addNotification('info', 'Confirming transaction on Solana...')
         await connection.confirmTransaction({
           signature,
