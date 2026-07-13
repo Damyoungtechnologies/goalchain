@@ -29,7 +29,7 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/fixtures", async (_req, res, next) => {
   try {
-    const fixtures = db.fixture.findMany();
+    const fixtures = await db.fixture.findMany();
     res.json(fixtures);
   } catch (error) {
     next(error);
@@ -49,7 +49,7 @@ app.get("/api/fixtures/:id", async (req, res, next) => {
   try {
     const fixtureId = req.params.id;
     // Check DB first
-    const fixture = db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) }});
+    const fixture = await db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) }});
     if (fixture) return res.json(fixture);
     
     // Fallback: try fetching the score snapshot to reconstruct historical events
@@ -177,13 +177,13 @@ app.post("/api/predictions/cashout", cashoutPrediction);
 app.get("/api/predictions/me", getMyPredictions);
 
 // --- Admin & Global Routes ---
-app.get("/api/admin/markets", (_req, res) => {
-  res.json(db.market.findMany());
+app.get("/api/admin/markets", async (_req, res) => {
+  res.json(await db.market.findMany());
 });
 
-app.get("/api/analytics", (_req, res) => {
-  const predictions = db.prediction.findMany();
-  const markets = db.market.findMany({ where: { status: 'active' } });
+app.get("/api/analytics", async (_req, res) => {
+  const predictions = await db.prediction.findMany();
+  const markets = await db.market.findMany({ where: { status: 'active' } });
   
   const totalVolume = predictions.reduce((sum, p) => sum + p.stakeAmount, 0);
   const activeUsers = new Set(predictions.map(p => p.userId)).size;
@@ -226,9 +226,9 @@ app.get("/api/analytics", (_req, res) => {
   });
 });
 
-app.get("/api/leaderboard", (_req, res) => {
-  const predictions = db.prediction.findMany();
-  const users = db.user.findMany();
+app.get("/api/leaderboard", async (_req, res) => {
+  const predictions = await db.prediction.findMany();
+  const users = await db.user.findMany();
   
   const leaderboard = users.map(user => {
     const userPreds = predictions.filter(p => p.userId === user.id);
@@ -279,13 +279,13 @@ setInterval(async () => {
       snapshots = await fetchFixturesSnapshot();
     } catch (e) {
       // Oracle offline for full snapshot, fallback to updating existing active matches
-      snapshots = db.fixture.findMany().filter(f => f.GameState < 3);
+      snapshots = (await db.fixture.findMany()).filter(f => f.GameState < 3);
     }
     
     const now = Date.now();
 
     for (const snap of snapshots) {
-      const existingDbFixture = db.fixture.findUnique({ where: { FixtureId: snap.FixtureId } }) || {};
+      const existingDbFixture = await db.fixture.findUnique({ where: { FixtureId: snap.FixtureId } }) || {};
       const fixtureData = { ...existingDbFixture, ...snap };
       
       // Dynamically detect live matches
@@ -368,7 +368,7 @@ setInterval(async () => {
       }
       
       // Upsert into DB
-      db.fixture.upsert({
+      await db.fixture.upsert({
         where: { FixtureId: fixtureData.FixtureId },
         update: fixtureData,
         create: fixtureData
@@ -396,11 +396,11 @@ setInterval(async () => {
     const finishedFixtures = fixtures.filter(f => f.GameState === 3);
     
     // Auto-create markets for new fixtures
-    const existingMarkets = db.market.findMany();
+    const existingMarkets = await db.market.findMany();
     for (const fixture of activeFixtures) {
       const hasMarket = existingMarkets.some(m => m.fixtureId === fixture.FixtureId);
       if (!hasMarket) {
-        db.market.create({
+        await db.market.create({
           data: {
             fixtureId: fixture.FixtureId,
             fixtureName: `${fixture.Participant1 || 'Home'} vs ${fixture.Participant2 || 'Away'}`,
@@ -411,7 +411,7 @@ setInterval(async () => {
       }
     }
 
-    const openPredictions = db.prediction.findMany({ where: { status: "open" } });
+    const openPredictions = await db.prediction.findMany({ where: { status: "open" } });
     console.log("Open predictions count:", openPredictions.length);
 
     for (const prediction of openPredictions) {
@@ -502,12 +502,12 @@ setInterval(async () => {
               console.log(`Auto-settlement Paid out ${prediction.potentialPayout} ${prediction.currency || 'SOL'} to ${prediction.userPubKey}. Tx: ${payoutTxHash}`);
             }
 
-            db.prediction.update({
+            await db.prediction.update({
               where: { id: prediction.id },
               data: { status: "won", payoutTxHash }
             });
 
-            db.transaction.create({
+            await db.transaction.create({
               data: {
                 userId: prediction.userId,
                 type: "payout",
@@ -520,7 +520,7 @@ setInterval(async () => {
             console.error("Payout failed in auto-settlement:", e);
           }
         } else {
-          db.prediction.update({
+          await db.prediction.update({
             where: { id: prediction.id },
             data: { status: "lost" }
           });
@@ -548,7 +548,7 @@ app.use((error, _req, res, _next) => {
 app.post("/api/settle", async (req, res, next) => {
   try {
     const { fixtureId, participant1Score, participant2Score } = req.body;
-    const openPredictions = db.prediction.findMany({ where: { status: "open", fixtureId: fixtureId.toString() } });
+    const openPredictions = await db.prediction.findMany({ where: { status: "open", fixtureId: fixtureId.toString() } });
     
     let settledCount = 0;
     for (const prediction of openPredictions) {
@@ -586,12 +586,12 @@ app.post("/api/settle", async (req, res, next) => {
             const txHash = await sendAndConfirmTransaction(connection, tx, [houseWallet]);
             console.log("Payout success!", txHash);
             
-            db.prediction.update({
+            await db.prediction.update({
               where: { id: prediction.id },
               data: { status: "won", txHash }
             });
 
-            db.transaction.create({
+            await db.transaction.create({
               data: { userId: prediction.userId, type: "payout", amount: prediction.potentialPayout, currency: "SOL", txHash }
             });
             settledCount++;
@@ -600,7 +600,7 @@ app.post("/api/settle", async (req, res, next) => {
           console.error("Payout error", e);
         }
       } else {
-        db.prediction.update({
+        await db.prediction.update({
           where: { id: prediction.id },
           data: { status: "lost" }
         });

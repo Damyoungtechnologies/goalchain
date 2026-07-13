@@ -8,26 +8,26 @@ export async function stakePrediction(req, res) {
     const { userId, fixtureId, marketId, outcome, stakeAmount, potentialPayout, txHash, currency, tokenMint } = req.body
 
     // Ensure user exists (Mock for now, normally would check Auth token)
-    let user = db.user.findUnique({ where: { id: userId } })
+    let user = await db.user.findUnique({ where: { id: userId } })
     if (!user) {
-      user = db.user.create({ data: { id: userId, email: req.body.email || 'user@example.com', displayName: req.body.displayName || 'Anonymous User' } })
+      user = await db.user.create({ data: { id: userId, email: req.body.email || 'user@example.com', displayName: req.body.displayName || 'Anonymous User' } })
     } else if (req.body.displayName) {
-      user = db.user.update({ where: { id: userId }, data: { displayName: req.body.displayName } })
+      user = await db.user.update({ where: { id: userId }, data: { displayName: req.body.displayName } })
     }
 
     // Enforce one active prediction per match
-    const existingPredictions = db.prediction.findMany({ where: { userId, fixtureId, status: 'open' } })
+    const existingPredictions = await db.prediction.findMany({ where: { userId, fixtureId, status: 'open' } })
     if (existingPredictions.length > 0) {
       return res.status(400).json({ error: 'You already have an active prediction for this match. Please wait for it to settle or cash it out first.' })
     }
 
     // Enforce match hasn't started yet
-    const fixture = db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) } })
+    const fixture = await db.fixture.findUnique({ where: { FixtureId: parseInt(fixtureId) } })
     if (fixture && (fixture.GameState === 2 || fixture.GameState === 3 || fixture.StartTime <= Date.now())) {
       return res.status(400).json({ error: 'Predictions are locked. This match has already started or finished.' })
     }
 
-    const prediction = db.prediction.create({
+    const prediction = await db.prediction.create({
       data: {
         userId: user.id,
         fixtureId,
@@ -43,11 +43,11 @@ export async function stakePrediction(req, res) {
     })
 
     // Update global market escrow
-    const markets = db.market.findMany();
+    const markets = await db.market.findMany();
     let market = markets.find(m => m.fixtureId?.toString() === fixtureId?.toString());
     
     if (!market) {
-      market = db.market.create({
+      market = await db.market.create({
         data: {
           fixtureId: parseInt(fixtureId) || 0,
           fixtureName: `Match #${fixtureId}`,
@@ -57,12 +57,12 @@ export async function stakePrediction(req, res) {
       });
     }
 
-    db.market.update({
+    await db.market.update({
       where: { id: market.id },
       data: { escrow: (market.escrow || 0) + stakeAmount }
     });
 
-    db.transaction.create({
+    await db.transaction.create({
       data: {
         userId: user.id,
         type: 'stake',
@@ -87,7 +87,7 @@ export async function cashoutPrediction(req, res) {
       return res.status(400).json({ error: 'Missing user public key for payout' })
     }
 
-    const prediction = db.prediction.findMany({ where: { id: predictionId } })[0]
+    const prediction = await db.prediction.findMany({ where: { id: predictionId } })[0]
     if (!prediction) {
       return res.status(404).json({ error: 'Prediction not found' })
     }
@@ -133,12 +133,12 @@ export async function cashoutPrediction(req, res) {
       return res.status(500).json({ error: 'Smart contract payout failed: ' + txError.message })
     }
 
-    const updatedPrediction = db.prediction.update({
+    const updatedPrediction = await db.prediction.update({
       where: { id: predictionId },
       data: { status: 'cashed_out' }
     })
 
-    db.transaction.create({
+    await db.transaction.create({
       data: {
         userId: updatedPrediction.userId,
         type: 'cashout',
@@ -158,8 +158,8 @@ export async function cashoutPrediction(req, res) {
 export async function getMyPredictions(req, res) {
   try {
     const { userId } = req.query
-    const predictions = db.prediction.findMany({ where: { userId } })
-    const markets = db.market.findMany()
+    const predictions = await db.prediction.findMany({ where: { userId } })
+    const markets = await db.market.findMany()
     const enriched = predictions.map(p => {
       const m = markets.find(m => m.fixtureId?.toString() === p.fixtureId?.toString())
       return {
