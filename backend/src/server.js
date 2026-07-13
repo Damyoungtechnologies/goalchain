@@ -13,7 +13,7 @@ import { buildSettleInstructionPlan } from "./settlement.js";
 import { stakePrediction, cashoutPrediction, getMyPredictions } from "./routes/predictions.js";
 import { db } from "./db.js";
 import { getAssociatedTokenAddressSync, createTransferInstruction } from "@solana/spl-token";
-
+import { getHouseWallet } from "./walletUtils.js";
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -260,11 +260,7 @@ app.get("/api/house-wallet", async (req, res, next) => {
   try {
     const fs = await import("fs");
     const { Keypair } = await import("@solana/web3.js");
-    if (!fs.existsSync("houseWallet.json")) {
-      return res.status(500).json({ error: "House wallet not configured" });
-    }
-    const secret = JSON.parse(fs.readFileSync("houseWallet.json", "utf8"));
-    const houseWallet = Keypair.fromSecretKey(new Uint8Array(secret));
+    const houseWallet = getHouseWallet();
     res.json({ publicKey: houseWallet.publicKey.toBase58() });
   } catch (error) {
     next(error);
@@ -462,8 +458,7 @@ setInterval(async () => {
             const fs = await import("fs");
             const { Keypair, Connection, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL } = await import("@solana/web3.js");
             
-            const secret = JSON.parse(fs.readFileSync("houseWallet.json", "utf8"));
-            const houseWallet = Keypair.fromSecretKey(new Uint8Array(secret));
+            const houseWallet = getHouseWallet();
             const connection = new Connection(config.solana.rpcUrl, "confirmed");
             
             let payoutTxHash = "mock_payout_tx_" + Date.now();
@@ -566,8 +561,7 @@ app.post("/api/settle", async (req, res, next) => {
           const fs = await import("fs");
           const { Keypair, Connection, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL } = await import("@solana/web3.js");
           
-          const secret = JSON.parse(fs.readFileSync("houseWallet.json", "utf8"));
-          const houseWallet = Keypair.fromSecretKey(new Uint8Array(secret));
+          const houseWallet = getHouseWallet();
           const connection = new Connection(config.solana.rpcUrl, "confirmed");
           
           if (prediction.userPubKey) {

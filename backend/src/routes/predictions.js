@@ -2,6 +2,7 @@ import { db } from '../db.js'
 import fs from 'fs'
 import { Connection, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync, createTransferInstruction } from '@solana/spl-token'
+import { getHouseWallet } from '../walletUtils.js'
 
 export async function stakePrediction(req, res) {
   try {
@@ -97,8 +98,7 @@ export async function cashoutPrediction(req, res) {
     // Real Solana Payout from House Wallet
     try {
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
-      const secret = JSON.parse(fs.readFileSync('houseWallet.json', 'utf8'))
-      const houseWallet = Keypair.fromSecretKey(new Uint8Array(secret))
+      const houseWallet = getHouseWallet()
       
       const transaction = new Transaction()
       
