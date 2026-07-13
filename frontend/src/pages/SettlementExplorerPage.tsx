@@ -30,6 +30,7 @@ export default function SettlementExplorerPage() {
             outcome: p.outcome,
             amount: p.potentialPayout,
             status: p.status, // won, lost, open
+            currency: p.currency || 'SOL',
             txHash: p.txHash,
             merkleRoot: p.id.replace(/-/g, '').substring(0, 32),
             timestamp: p.createdAt,
@@ -95,7 +96,7 @@ export default function SettlementExplorerPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-accent">
-                      {settlement.amount} SOL
+                      {settlement.amount} {settlement.currency}
                     </div>
                     <div className="text-sm text-text-secondary">Payout</div>
                   </div>

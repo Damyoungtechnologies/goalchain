@@ -239,13 +239,16 @@ app.get("/api/leaderboard", async (_req, res) => {
     const profit = totalPayout - totalStaked;
     const roi = totalStaked > 0 ? ((profit / totalStaked) * 100).toFixed(1) : 0;
     
+    const primaryCurrency = userPreds.length > 0 ? (userPreds[userPreds.length - 1].currency || 'SOL') : 'SOL';
+    
     return {
       rank: 0,
       username: user.displayName || 'Anonymous',
       wallet: user.id.slice(0,4) + '...' + user.id.slice(-4),
       profit: parseFloat(profit.toFixed(2)),
       roi: parseFloat(roi),
-      predictions: userPreds.length
+      predictions: userPreds.length,
+      currency: primaryCurrency
     };
   }).filter(leader => leader.predictions > 0)
     .sort((a, b) => b.profit - a.profit)
