@@ -69,7 +69,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
       const { publicKey: houseWalletAddress } = await hwRes.json()
       
       const houseVault = new PublicKey(houseWalletAddress)
-      const latestBlockhash = await connection.getLatestBlockhash('finalized')
+      const latestBlockhash = await connection.getLatestBlockhash('confirmed')
 
       const instructions = []
       const selCurrency = CURRENCIES[currency]
