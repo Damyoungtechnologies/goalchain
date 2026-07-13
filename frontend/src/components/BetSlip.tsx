@@ -95,10 +95,13 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
         )
       }
 
-      const transaction = new Transaction({
-        feePayer: publicKey,
-        recentBlockhash: latestBlockhash.blockhash
-      }).add(...instructions)
+      const messageV0 = new TransactionMessage({
+        payerKey: publicKey,
+        recentBlockhash: latestBlockhash.blockhash,
+        instructions
+      }).compileToV0Message()
+
+      const transaction = new VersionedTransaction(messageV0)
 
       let signature = '';
       try {
