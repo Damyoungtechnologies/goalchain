@@ -16,7 +16,7 @@ export default function LiveMatchesPage() {
     queryKey: ['predictions', user?.uid],
     queryFn: async () => {
       if (!user) return []
-      const res = await fetch(`http://localhost:8787/api/predictions/me?userId=${user.uid}`)
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/me?userId=${user.uid}`)
       if (!res.ok) throw new Error('Failed to fetch predictions')
       return res.json()
     },
@@ -30,7 +30,7 @@ export default function LiveMatchesPage() {
   const { data: fixtures, isLoading, error } = useQuery<Fixture[]>({
     queryKey: ['fixtures'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:8787/api/fixtures')
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/fixtures`)
       if (!response.ok) {
         const text = await response.text().catch(() => 'Network error')
         throw new Error(text)

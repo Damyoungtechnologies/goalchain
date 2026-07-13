@@ -64,7 +64,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
     setLoading(true)
     try {
       addNotification('info', 'Connecting to secure House Wallet...')
-      const hwRes = await fetch('http://localhost:8787/api/house-wallet')
+      const hwRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/house-wallet`)
       if (!hwRes.ok) throw new Error('Could not fetch House Wallet')
       const { publicKey: houseWalletAddress } = await hwRes.json()
       
@@ -120,7 +120,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
       const txHash = signature
 
       // Post to backend
-      const response = await fetch('http://localhost:8787/api/predictions/stake', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/stake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

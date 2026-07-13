@@ -9,7 +9,7 @@ export default function AnalyticsPage() {
   const { data: analytics } = useQuery({
     queryKey: ['analytics'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8787/api/analytics')
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/analytics`)
       if (!res.ok) throw new Error('Failed to fetch analytics')
       return res.json()
     },

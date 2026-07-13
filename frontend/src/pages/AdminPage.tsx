@@ -18,7 +18,7 @@ export default function AdminPage() {
   const { data, isError } = useQuery({
     queryKey: ['admin-markets'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8787/api/admin/markets')
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/admin/markets`)
       if (!res.ok) throw new Error('Network response was not ok')
       return res.json()
     },

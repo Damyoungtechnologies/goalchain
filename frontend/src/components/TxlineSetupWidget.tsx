@@ -125,7 +125,7 @@ export function TxlineSetupWidget() {
 
       // 5. Send to backend
       setStatus('Saving credentials to backend...')
-      await fetch('http://localhost:8787/api/setup-env', {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/setup-env`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jwt, apiToken })

@@ -9,7 +9,7 @@ export default function LeaderboardPage() {
   const { data: leaderboardData = [] } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8787/api/leaderboard')
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/leaderboard`)
       if (!res.ok) throw new Error('Failed to fetch leaderboard')
       return res.json()
     },

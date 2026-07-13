@@ -34,7 +34,7 @@ export default function MyPredictionsPage() {
     queryKey: ['predictions', user?.uid],
     queryFn: async () => {
       if (!user) return []
-      const res = await fetch(`http://localhost:8787/api/predictions/me?userId=${user.uid}`)
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/me?userId=${user.uid}`)
       if (!res.ok) throw new Error('Failed to fetch predictions')
       return res.json()
     },
@@ -46,7 +46,7 @@ export default function MyPredictionsPage() {
     queryKey: ['fixtures'],
     queryFn: async () => {
       // Use standard relative fetch to support both dev and prod, but fallback to localhost:8787 for dev
-      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8787' : '';
+      const apiUrl = window.location.hostname === 'localhost' ? `${import.meta.env.VITE_API_URL || 'http://localhost:8787'}` : '';
       const res = await fetch(`${apiUrl}/api/fixtures`);
       let data = await res.json();
       
@@ -100,7 +100,7 @@ export default function MyPredictionsPage() {
     mutationFn: async ({ predictionId, amount }: { predictionId: string, amount: number }) => {
       addNotification('info', 'Requesting Smart Contract Cashout...')
       
-      const res = await fetch('http://localhost:8787/api/predictions/cashout', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/cashout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

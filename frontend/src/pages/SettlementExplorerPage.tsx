@@ -19,7 +19,7 @@ export default function SettlementExplorerPage() {
 
   useEffect(() => {
     if (user?.uid) {
-      fetch(`http://localhost:8787/api/predictions/me?userId=${user.uid}`)
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/me?userId=${user.uid}`)
         .then(r => r.json())
         .then(data => {
           // Map predictions to settlement format

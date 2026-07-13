@@ -81,7 +81,7 @@ export default function PredictionPage() {
   const { data: fixtures, isLoading, error } = useQuery<Fixture[]>({
     queryKey: ['fixtures'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:8787/api/fixtures')
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/fixtures`)
       if (!response.ok) throw new Error('Network response was not ok')
       const data = await response.json()
       const fixturesArray = Array.isArray(data) ? data : data.value || []
@@ -104,7 +104,7 @@ export default function PredictionPage() {
   const { data: rawTxlineMarkets, isLoading: isLoadingMarkets } = useQuery({
     queryKey: ['markets', fixtureId],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:8787/api/fixtures/${fixtureId}/markets`)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/fixtures/${fixtureId}/markets`)
       if (!response.ok) return []
       const data = await response.json()
       return Array.isArray(data) ? data : data.value || []
