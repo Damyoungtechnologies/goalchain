@@ -13,7 +13,7 @@ interface NavbarProps {
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { connected } = useWallet()
-  const { notifications, markAllAsRead } = useNotifications()
+  const { notifications, markAllAsRead, addNotification } = useNotifications()
   const { user, signInWithGoogle, logout } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const [page, setPage] = useState(0)
