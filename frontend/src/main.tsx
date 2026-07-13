@@ -31,7 +31,7 @@ const endpoint = clusterApiUrl(network)
 
 const wallets = [
   new PhantomWalletAdapter(),
-  new SolflareWalletAdapter()
+  new SolflareWalletAdapter({ network: WalletAdapterNetwork.Devnet })
 ]
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -109,7 +109,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
           addNotification('info', `Please approve the transaction in your wallet...`)
           const signedTx = await signTransaction(transaction)
           addNotification('info', 'Sending to Solana network...')
-          signature = await connection.sendRawTransaction(signedTx.serialize())
+          signature = await connection.sendRawTransaction(signedTx.serialize(), { skipPreflight: true })
         } else {
           addNotification('info', `Please approve the transaction in your wallet...`)
           signature = await sendTransaction(transaction, connection)
