@@ -303,7 +303,7 @@ export default function MyPredictionsPage() {
                       )}
                     </div>
                   </div>
-                  {fixture?.events && fixture.events.length > 0 && (
+                  {fixture && (
                     <div className="mt-4 border-t border-white/5 pt-4 flex flex-col md:flex-row gap-4">
                       <button
                         onClick={() => setActiveLiveFeed(fixture)}

@@ -12,8 +12,7 @@ interface LiveMatchFeedProps {
 }
 
 export default function LiveMatchFeed({ events, homeTeam, awayTeam }: LiveMatchFeedProps) {
-  if (!events || events.length === 0) return null;
-
+  const hasEvents = events && events.length > 0;
   const getEventDetails = (ev: any) => {
     const pName = ev.Participant === 1 ? homeTeam : ev.Participant === 2 ? awayTeam : '';
     
@@ -59,9 +58,9 @@ export default function LiveMatchFeed({ events, homeTeam, awayTeam }: LiveMatchF
   };
 
   // Filter out noise to get actual events.
-  const meaningfulEvents = events.map((ev: any) => ({ ev, details: getEventDetails(ev) }))
-                                 .filter((item: any) => item.details !== null);
-                                 
+  const meaningfulEvents = hasEvents 
+    ? events.map((ev: any) => ({ ev, details: getEventDetails(ev) })).filter((item: any) => item.details !== null)
+    : [];
   // Sort chronologically by match clock to prevent any out-of-order amendments from the Oracle
   const sortedEvents = meaningfulEvents.sort((a: any, b: any) => {
     const clockA = a.ev.Clock?.Seconds || 0;
@@ -94,7 +93,7 @@ export default function LiveMatchFeed({ events, homeTeam, awayTeam }: LiveMatchF
 
       <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 relative z-10">
         <AnimatePresence>
-          {displayEvents.map(({ ev, details }: any, i: number) => {
+          {displayEvents.length > 0 ? displayEvents.map(({ ev, details }: any, i: number) => {
             const minute = ev.Clock?.Seconds ? Math.floor(ev.Clock.Seconds / 60) : null;
             return (
               <motion.div 
@@ -117,7 +116,13 @@ export default function LiveMatchFeed({ events, homeTeam, awayTeam }: LiveMatchF
                 </div>
               </motion.div>
             )
-          })}
+          }) : (
+            <div className="text-center p-8 text-text-secondary border border-white/5 rounded-xl bg-black/20">
+              <Activity className="w-8 h-8 mx-auto mb-3 opacity-50" />
+              <p>No events recorded for this match yet.</p>
+              <p className="text-xs opacity-70 mt-1">Waiting for the oracle to broadcast updates...</p>
+            </div>
+          )}
         </AnimatePresence>
       </div>
     </div>
