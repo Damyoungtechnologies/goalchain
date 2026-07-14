@@ -16,7 +16,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (connected && publicKey) {
-      connection.getBalance(publicKey).then((lamports) => {
+      connection.getBalance(publicKey).then((lamports: number) => {
         setBalance(lamports / LAMPORTS_PER_SOL)
       }).catch(console.error)
     } else {
