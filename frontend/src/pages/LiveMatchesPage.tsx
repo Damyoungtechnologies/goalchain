@@ -45,7 +45,7 @@ export default function LiveMatchesPage() {
         away: f.Participant1IsHome ? f.Participant2 : f.Participant1,
         homeScore: f.Participant1Score || 0,
         awayScore: f.Participant2Score || 0,
-        minute: f.Minute || 0,
+        minute: Number(f.Minute || f.minute || f.GameTime || 0),
         competition: f.Competition,
         stage: 'Group Stage', // default or map if available
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',
@@ -238,6 +238,14 @@ export default function LiveMatchesPage() {
                         >
                           <span>Predicted</span>
                         </button>
+                      ) : fixture.state === 'Live' ? (
+                        <Link
+                          to={`/prediction/${fixture.id}`}
+                          className="bg-accent/10 text-accent hover:bg-accent/20 inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg transition-colors"
+                        >
+                          <span>View Live</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
                       ) : fixture.state !== 'Scheduled' ? (
                         <button
                           disabled

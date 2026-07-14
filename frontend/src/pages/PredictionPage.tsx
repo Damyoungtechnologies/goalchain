@@ -92,7 +92,7 @@ export default function PredictionPage() {
         away: f.Participant1IsHome ? f.Participant2 : f.Participant1,
         homeScore: f.Participant1Score || 0,
         awayScore: f.Participant2Score || 0,
-        minute: f.Minute || 0,
+        minute: Number(f.Minute || f.minute || f.GameTime || 0),
         competition: f.Competition,
         stage: 'Group Stage',
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',

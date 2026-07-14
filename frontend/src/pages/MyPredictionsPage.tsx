@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle, XCircle, Clock, Target, AlertCircle, ShieldCheck, Activity, X, Bot } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Target, AlertCircle, ShieldCheck, Activity, X, Bot, Code2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
@@ -29,6 +29,7 @@ export default function MyPredictionsPage() {
   const [selectedPrediction, setSelectedPrediction] = useState<any>(null)
   const [activeLiveFeed, setActiveLiveFeed] = useState<any>(null)
   const [activeAI, setActiveAI] = useState<any>(null)
+  const [activeRawFeed, setActiveRawFeed] = useState<any>(null)
 
   const { data: positions = [], isLoading } = useQuery({
     queryKey: ['predictions', user?.uid],
@@ -87,7 +88,7 @@ export default function MyPredictionsPage() {
         homeScore: f.Participant1Score || 0,
         awayScore: f.Participant2Score || 0,
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',
-        minute: f.Minute || 0,
+        minute: Number(f.Minute || f.minute || f.GameTime || 0),
         events: f.events || [],
         raw: f
       }));
@@ -291,6 +292,15 @@ export default function MyPredictionsPage() {
                           <span>View Proof</span>
                         </button>
                       )}
+                      {fixture && (
+                        <button
+                          onClick={() => setActiveRawFeed(fixture)}
+                          className="bg-white/10 hover:bg-white/20 text-text font-bold py-2 px-4 rounded-lg border border-white/10 transition-all flex items-center space-x-2"
+                        >
+                          <Code2 className="w-4 h-4" />
+                          <span>View Live Fields</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   {fixture?.events && fixture.events.length > 0 && (
@@ -376,6 +386,47 @@ export default function MyPredictionsPage() {
                 </button>
               </div>
               <MarketAssistant fixture={activeAI} showHistory={true} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeRawFeed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-2xl max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden rounded-xl bg-gray-900"
+            >
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  onClick={() => setActiveRawFeed(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6 border-b border-white/10">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Code2 className="w-5 h-5 text-accent" />
+                  Live Oracle Fields
+                </h3>
+                <p className="text-sm text-text-secondary mt-1">
+                  {activeRawFeed.home} vs {activeRawFeed.away}
+                </p>
+              </div>
+              <div className="overflow-y-auto custom-scrollbar flex-grow p-6 bg-black/50">
+                <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                  {JSON.stringify(activeRawFeed.raw, null, 2)}
+                </pre>
+              </div>
             </motion.div>
           </motion.div>
         )}
