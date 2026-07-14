@@ -11,7 +11,6 @@ import MarketAssistant from '@/components/MarketAssistant'
 export default function LiveMatchesPage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<'all' | 'live' | 'scheduled'>('all')
-  const [activeRawFeed, setActiveRawFeed] = useState<any>(null)
 
   const { data: positions = [] } = useQuery({
     queryKey: ['predictions', user?.uid],
@@ -263,14 +262,6 @@ export default function LiveMatchesPage() {
                           <ChevronRight className="w-4 h-4" />
                         </Link>
                       )}
-                      
-                      <button
-                        onClick={() => setActiveRawFeed(fixture)}
-                        className="bg-white/10 hover:bg-white/20 text-text font-bold py-2 px-4 rounded-lg border border-white/10 transition-all flex items-center space-x-2 text-sm"
-                      >
-                        <Code2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">View Live Fields</span>
-                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -285,47 +276,6 @@ export default function LiveMatchesPage() {
           </div>
         </div>
       </div>
-
-      <AnimatePresence>
-        {activeRawFeed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-2xl max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden rounded-xl bg-gray-900"
-            >
-              <div className="absolute top-4 right-4 z-20">
-                <button
-                  onClick={() => setActiveRawFeed(null)}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="p-6 border-b border-white/10">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Code2 className="w-5 h-5 text-accent" />
-                  Live Oracle Fields
-                </h3>
-                <p className="text-sm text-text-secondary mt-1">
-                  {activeRawFeed.home} vs {activeRawFeed.away}
-                </p>
-              </div>
-              <div className="overflow-y-auto custom-scrollbar flex-grow p-6 bg-black/50">
-                <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
-                  {JSON.stringify(activeRawFeed.raw || activeRawFeed, null, 2)}
-                </pre>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
