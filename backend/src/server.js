@@ -65,7 +65,15 @@ app.get("/api/fixtures/:id", async (req, res, next) => {
            Participant2Score: latest.Score?.Participant2?.Total?.Goals || 0,
            Minute: latest.Clock?.Seconds ? Math.floor(latest.Clock.Seconds / 60) : 90
          };
-         return res.json(reconstructed);
+         
+         // Heal the database: upsert the reconstructed historical data so it's permanently available
+         await db.fixture.upsert({
+           where: { FixtureId: reconstructed.FixtureId },
+           update: { ...fixture, ...reconstructed },
+           create: reconstructed
+         });
+         
+         return res.json({ ...fixture, ...reconstructed });
       }
     } catch(e) {
       console.error("Could not fetch historical snapshot for", fixtureId, e.message);
@@ -442,11 +450,22 @@ setInterval(async () => {
                 if (market && market.fixtureName && market.fixtureName.includes(' vs ')) {
                   const [part1, part2] = market.fixtureName.split(' vs ');
                   fixture = {
+                    FixtureId: parseInt(prediction.fixtureId),
                     Participant1Score: lastEvent.Score?.Participant1?.Total?.Goals ?? 0,
                     Participant2Score: lastEvent.Score?.Participant2?.Total?.Goals ?? 0,
                     Participant1: part1,
-                    Participant2: part2
+                    Participant2: part2,
+                    events: scoreEvents,
+                    GameState: 3
                   };
+                  
+                  // Upsert the finished fixture to DB so historical events are available to the frontend
+                  const existingDbFixture = await db.fixture.findUnique({ where: { FixtureId: fixture.FixtureId } }) || {};
+                  await db.fixture.upsert({
+                    where: { FixtureId: fixture.FixtureId },
+                    update: { ...existingDbFixture, ...fixture },
+                    create: fixture
+                  });
                 }
               }
             }
