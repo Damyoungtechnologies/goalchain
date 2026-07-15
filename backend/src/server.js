@@ -18,6 +18,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
+let liveOracleFixturesCache = [];
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -29,8 +31,16 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/fixtures", async (_req, res, next) => {
   try {
-    const fixtures = await db.fixture.findMany();
-    res.json(fixtures);
+    const dbFixtures = await db.fixture.findMany();
+    
+    // Merge live Oracle data with DB data to ensure live matches are visible even if Firebase quota is exceeded
+    const fixtureMap = new Map();
+    dbFixtures.forEach(f => fixtureMap.set(f.FixtureId, f));
+    liveOracleFixturesCache.forEach(f => {
+      fixtureMap.set(f.FixtureId, { ...(fixtureMap.get(f.FixtureId) || {}), ...f });
+    });
+    
+    res.json(Array.from(fixtureMap.values()));
   } catch (error) {
     next(error);
   }
@@ -285,6 +295,7 @@ setInterval(async () => {
     let oracleSnapshots = [];
     try {
       oracleSnapshots = await fetchFixturesSnapshot();
+      liveOracleFixturesCache = oracleSnapshots;
     } catch (e) {
       // Oracle offline, will just use DB fixtures
     }
