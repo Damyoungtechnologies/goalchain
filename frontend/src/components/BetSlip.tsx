@@ -136,6 +136,7 @@ export default function BetSlip({ isOpen, onClose, fixture, selectedOutcome }: B
           userId: user.uid,
           email: user.email,
           displayName: user.displayName,
+          userPubKey: publicKey.toBase58(),
           fixtureId: fixture.id,
           marketId: selectedOutcome.marketId,
           outcome: selectedOutcome.outcome,

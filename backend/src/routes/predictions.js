@@ -6,7 +6,7 @@ import { getHouseWallet } from '../walletUtils.js'
 
 export async function stakePrediction(req, res) {
   try {
-    const { userId, fixtureId, marketId, outcome, stakeAmount, potentialPayout, txHash, currency, tokenMint } = req.body
+    const { userId, fixtureId, marketId, outcome, stakeAmount, potentialPayout, txHash, currency, tokenMint, userPubKey } = req.body
 
     // Ensure user exists (Mock for now, normally would check Auth token)
     let user = await db.user.findUnique({ where: { id: userId } })
@@ -39,7 +39,8 @@ export async function stakePrediction(req, res) {
         status: 'open',
         txHash,
         currency: currency || 'SOL',
-        tokenMint: tokenMint || null
+        tokenMint: tokenMint || null,
+        userPubKey: userPubKey || null
       }
     })
 
