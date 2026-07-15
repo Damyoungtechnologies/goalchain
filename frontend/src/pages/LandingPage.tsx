@@ -4,10 +4,18 @@ import { motion } from 'framer-motion'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Trophy, Shield, Zap, ArrowRight, Sparkles } from 'lucide-react'
 
+import { useEffect } from 'react'
+
 export default function LandingPage() {
   const { connected } = useWallet()
   const { user, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (user) {
+      navigate('/live')
+    }
+  }, [user, navigate])
 
   const handleAction = async (e: React.MouseEvent, path: string) => {
     e.preventDefault()
