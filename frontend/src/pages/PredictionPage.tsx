@@ -101,7 +101,9 @@ export default function PredictionPage() {
         competition: f.Competition,
         stage: 'Group Stage',
         state: f.GameState === 2 ? 'Live' : f.GameState === 3 ? 'Final' : 'Scheduled',
-        startTime: f.StartTime
+        startTime: f.StartTime,
+        events: f.events || [],
+        raw: f
       }))
     },
   })
@@ -320,7 +322,7 @@ export default function PredictionPage() {
                 </p>
               </div>
               <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
-                <LiveMatchFeed events={fixture?.events || activeLiveFeed.events || fixture?.raw?.events || activeLiveFeed.raw?.events || []} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
+                <LiveMatchFeed events={(fixture as any)?.events || activeLiveFeed.events || (fixture as any)?.raw?.events || activeLiveFeed.raw?.events || []} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
               </div>
             </motion.div>
           </motion.div>
