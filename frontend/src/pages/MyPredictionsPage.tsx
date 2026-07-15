@@ -136,6 +136,34 @@ export default function MyPredictionsPage() {
     }
   })
 
+  const retryPayoutMutation = useMutation({
+    mutationFn: async (predictionId: string) => {
+      if (!publicKey) throw new Error('Please connect your wallet first')
+      addNotification('info', 'Executing on-chain payout...')
+      
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/predictions/${predictionId}/retry-payout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userPubKey: publicKey.toBase58() })
+      })
+      
+      if (!res.ok) {
+        const text = await res.text()
+        let errStr = text
+        try { errStr = JSON.parse(text).error } catch(e){}
+        throw new Error(errStr || 'Failed to execute payout')
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      addNotification('success', `Payout successful! View transaction on Solana Explorer.`)
+      queryClient.invalidateQueries({ queryKey: ['predictions', user?.uid] })
+    },
+    onError: (error: any) => {
+      addNotification('error', error.message)
+    }
+  })
+
   if (!user) {
     return (
       <div className="glass-card p-12 text-center mt-8">
@@ -287,6 +315,16 @@ export default function MyPredictionsPage() {
                           className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-green-500/20 transition-all flex items-center space-x-2"
                         >
                           {cashoutMutation.isPending ? 'Processing...' : `CASH OUT ${cashoutValue.toFixed(2)}`}
+                        </button>
+                      )}
+
+                      {position.status === 'won' && position.payoutTxHash?.startsWith('mock_payout_tx') && (
+                        <button 
+                          onClick={() => retryPayoutMutation.mutate(position.id)}
+                          disabled={retryPayoutMutation.isPending}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-yellow-500/20 transition-all flex items-center space-x-2"
+                        >
+                          {retryPayoutMutation.isPending ? 'Processing...' : 'Claim Winnings'}
                         </button>
                       )}
 

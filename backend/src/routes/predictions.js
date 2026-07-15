@@ -81,6 +81,53 @@ export async function stakePrediction(req, res) {
   }
 }
 
+export async function retryPayout(req, res) {
+  try {
+    const predictionId = req.params.id;
+    const { userPubKey } = req.body;
+
+    const prediction = await db.prediction.findUnique({ where: { id: predictionId } });
+    if (!prediction) return res.status(404).json({ error: 'Prediction not found' });
+    if (prediction.status !== 'won') return res.status(400).json({ error: 'Prediction has not won' });
+    if (!prediction.payoutTxHash?.startsWith('mock_payout_tx')) return res.status(400).json({ error: 'Already paid out on-chain' });
+    if (!userPubKey) return res.status(400).json({ error: 'Missing user pubkey' });
+
+    let payoutTxHash;
+    try {
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const houseWallet = getHouseWallet();
+      const toPubkey = new PublicKey(userPubKey);
+      const tx = new Transaction();
+
+      if (!prediction.tokenMint) {
+        const lamports = Math.floor(prediction.potentialPayout * LAMPORTS_PER_SOL);
+        tx.add(SystemProgram.transfer({ fromPubkey: houseWallet.publicKey, toPubkey, lamports }));
+      } else {
+        const mintPubKey = new PublicKey(prediction.tokenMint);
+        const houseATA = getAssociatedTokenAddressSync(mintPubKey, houseWallet.publicKey);
+        const userATA = getAssociatedTokenAddressSync(mintPubKey, toPubkey);
+        const amount = Math.floor(prediction.potentialPayout * 1000000);
+        tx.add(createTransferInstruction(houseATA, userATA, houseWallet.publicKey, amount));
+      }
+
+      payoutTxHash = await sendAndConfirmTransaction(connection, tx, [houseWallet]);
+    } catch (e) {
+      console.error("Payout retry failed:", e);
+      return res.status(500).json({ error: 'Blockchain transfer failed: ' + e.message });
+    }
+
+    await db.prediction.update({
+      where: { id: predictionId },
+      data: { payoutTxHash, userPubKey }
+    });
+
+    res.json({ message: 'Payout claimed successfully', txHash: payoutTxHash });
+  } catch (error) {
+    console.error("Retry payout error:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 export async function cashoutPrediction(req, res) {
   try {
     const { predictionId, cashoutAmount, userPubKey } = req.body

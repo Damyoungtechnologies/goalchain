@@ -10,7 +10,7 @@ import {
   getMarketsByFixture,
 } from "./txline.js";
 import { buildSettleInstructionPlan } from "./settlement.js";
-import { stakePrediction, cashoutPrediction, getMyPredictions } from "./routes/predictions.js";
+import { stakePrediction, cashoutPrediction, getMyPredictions, retryPayout } from "./routes/predictions.js";
 import { db } from "./db.js";
 import { getAssociatedTokenAddressSync, createTransferInstruction } from "@solana/spl-token";
 import { getHouseWallet } from "./walletUtils.js";
@@ -182,6 +182,7 @@ app.post("/api/setup-env", async (req, res, next) => {
 // --- Prediction Routes ---
 app.post("/api/predictions/stake", stakePrediction);
 app.post("/api/predictions/cashout", cashoutPrediction);
+app.post("/api/predictions/:id/retry-payout", retryPayout);
 app.get("/api/predictions/me", getMyPredictions);
 
 // --- Admin & Global Routes ---
