@@ -190,7 +190,7 @@ export default function MyPredictionsPage() {
             const StatusIcon = statusInfo.icon
             
             // Find live fixture
-            const fixture = fixtures.find((f: any) => f.id === position.fixtureId)
+            const fixture = fixtures.find((f: any) => String(f.id) === String(position.fixtureId))
             
             // Dynamic Cashout Algorithm
             let cashoutValue = position.stakeAmount * 0.8

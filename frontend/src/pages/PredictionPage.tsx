@@ -1,11 +1,13 @@
 import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Clock, AlertCircle, Code2, X } from 'lucide-react'
+import { ArrowLeft, Clock, AlertCircle, Code2, X, Activity, Bot } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import type { Market, Fixture } from '@/types'
 import { useState } from 'react'
 import BetSlip from '../components/BetSlip'
+import LiveMatchFeed from '../components/LiveMatchFeed'
+import MarketAssistant from '../components/MarketAssistant'
 
 const mockMarkets: Market[] = [
   {
@@ -71,6 +73,9 @@ const mockMarkets: Market[] = [
 export default function PredictionPage() {
   const { fixtureId } = useParams()
   const [isBetSlipOpen, setIsBetSlipOpen] = useState(false)
+  const [activeRawFeed, setActiveRawFeed] = useState<any>(null)
+  const [activeLiveFeed, setActiveLiveFeed] = useState<any>(null)
+  const [activeAI, setActiveAI] = useState<any>(null)
   const [selectedOutcome, setSelectedOutcome] = useState<{
     marketId: string
     marketName: string
@@ -201,6 +206,24 @@ export default function PredictionPage() {
           </div>
           <span className="text-2xl md:text-4xl font-bold text-text text-left flex-1">{fixture.away}</span>
         </div>
+        
+        <div className="mt-8 border-t border-white/5 pt-6 flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
+          <button
+            onClick={() => setActiveLiveFeed(fixture)}
+            className="flex-1 py-3 bg-accent/10 hover:bg-accent/20 text-accent font-bold rounded-xl border border-accent/20 transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent/5"
+          >
+            <Activity className="w-5 h-5 animate-pulse" />
+            Live Match Events
+          </button>
+          <button
+            onClick={() => setActiveAI(fixture)}
+            className="flex-1 py-3 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/5"
+          >
+            <Bot className="w-5 h-5" />
+            AI Analysis Log
+          </button>
+        </div>
+
         {fixture.state === 'Scheduled' && (
           <div className="text-center mt-6 text-text-secondary flex items-center justify-center space-x-2">
             <Clock className="w-4 h-4" />
@@ -264,6 +287,73 @@ export default function PredictionPage() {
           ))
         )}
       </div>
+
+      <AnimatePresence>
+        {activeLiveFeed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-lg max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden rounded-xl bg-gray-900"
+            >
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  onClick={() => setActiveLiveFeed(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6 border-b border-white/10">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-accent animate-pulse" />
+                  Live Match Events
+                </h3>
+                <p className="text-sm text-text-secondary mt-1">
+                  {activeLiveFeed.home} vs {activeLiveFeed.away}
+                </p>
+              </div>
+              <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
+                <LiveMatchFeed events={fixture?.events || activeLiveFeed.events || fixture?.raw?.events || activeLiveFeed.raw?.events || []} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeAI && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-lg max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden rounded-xl bg-gray-900"
+            >
+              <div className="absolute top-4 right-4 z-20">
+                <button
+                  onClick={() => setActiveAI(null)}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-secondary hover:text-text"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <MarketAssistant fixture={activeAI} showHistory={true} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BetSlip 
         isOpen={isBetSlipOpen} 

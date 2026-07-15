@@ -176,7 +176,7 @@ export default function LiveMatchesPage() {
                           )}
                           <span className="text-xl font-bold text-text w-24 md:w-32 truncate text-left ml-4">{fixture.away}</span>
                         </div>
-                        {fixture.state === 'Live' && (
+                        {(fixture.state === 'Live' || fixture.state === 'Final') && (
                           <div className="mt-4 space-y-3">
                             <div className="flex items-center space-x-4">
                               <div className="flex-1">
@@ -238,12 +238,12 @@ export default function LiveMatchesPage() {
                         >
                           <span>Predicted</span>
                         </button>
-                      ) : fixture.state === 'Live' ? (
+                      ) : (fixture.state === 'Live' || fixture.state === 'Final') ? (
                         <Link
                           to={`/prediction/${fixture.id}`}
                           className="bg-accent/10 text-accent hover:bg-accent/20 inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg transition-colors"
                         >
-                          <span>View Live</span>
+                          <span>{fixture.state === 'Live' ? 'View Live' : 'View Match'}</span>
                           <ChevronRight className="w-4 h-4" />
                         </Link>
                       ) : fixture.state !== 'Scheduled' ? (

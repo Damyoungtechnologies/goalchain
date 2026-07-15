@@ -26,10 +26,7 @@ const queryClient = new QueryClient({
   },
 })
 
-const network = import.meta.env.VITE_SOLANA_NETWORK === 'devnet' 
-  ? WalletAdapterNetwork.Devnet 
-  : WalletAdapterNetwork.Mainnet
-
+const network = WalletAdapterNetwork.Devnet
 const endpoint = import.meta.env.VITE_RPC_URL || clusterApiUrl(network)
 
 const wallets = [
