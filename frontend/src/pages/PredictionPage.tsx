@@ -121,6 +121,17 @@ export default function PredictionPage() {
 
   const fixture = fixtures?.find((f) => String(f.id) === String(fixtureId))
 
+  const { data: liveEvents } = useQuery({
+    queryKey: ['scores', fixtureId],
+    queryFn: async () => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/scores/${fixtureId}`)
+      if (!response.ok) return []
+      return await response.json()
+    },
+    refetchInterval: fixture?.state === 'Live' ? 5000 : false,
+    enabled: !!fixtureId
+  })
+
   const markets = (rawTxlineMarkets || []).map((m: any) => {
     let name = m.SuperOddsType || 'Unknown Market'
     if (name === 'ASIANHANDICAP_PARTICIPANT_GOALS') name = 'Asian Handicap'
@@ -322,7 +333,11 @@ export default function PredictionPage() {
                 </p>
               </div>
               <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
-                <LiveMatchFeed events={(fixture as any)?.events || activeLiveFeed.events || (fixture as any)?.raw?.events || activeLiveFeed.raw?.events || []} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
+                <LiveMatchFeed 
+                  events={liveEvents && liveEvents.length > 0 ? liveEvents : ((fixture as any)?.events || activeLiveFeed?.events || (fixture as any)?.raw?.events || activeLiveFeed?.raw?.events || [])} 
+                  homeTeam={activeLiveFeed?.home} 
+                  awayTeam={activeLiveFeed?.away} 
+                />
               </div>
             </motion.div>
           </motion.div>

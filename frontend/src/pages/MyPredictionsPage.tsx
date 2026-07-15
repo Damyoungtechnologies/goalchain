@@ -96,6 +96,17 @@ export default function MyPredictionsPage() {
     enabled: positions.length > 0
   });
 
+  const { data: liveEvents } = useQuery({
+    queryKey: ['scores', activeLiveFeed?.id],
+    queryFn: async () => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/scores/${activeLiveFeed?.id}`)
+      if (!response.ok) return []
+      return await response.json()
+    },
+    refetchInterval: activeLiveFeed?.state === 'Live' ? 5000 : false,
+    enabled: !!activeLiveFeed?.id
+  })
+
   const cashoutMutation = useMutation({
     mutationFn: async ({ predictionId, amount }: { predictionId: string, amount: number }) => {
       addNotification('info', 'Requesting Smart Contract Cashout...')
@@ -346,7 +357,11 @@ export default function MyPredictionsPage() {
                 </button>
               </div>
               <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
-                <LiveMatchFeed events={activeLiveFeed.events} homeTeam={activeLiveFeed.home} awayTeam={activeLiveFeed.away} />
+                <LiveMatchFeed 
+                  events={liveEvents && liveEvents.length > 0 ? liveEvents : (activeLiveFeed.events || activeLiveFeed.raw?.events || [])} 
+                  homeTeam={activeLiveFeed.home} 
+                  awayTeam={activeLiveFeed.away} 
+                />
               </div>
             </motion.div>
           </motion.div>
