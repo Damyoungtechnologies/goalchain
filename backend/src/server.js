@@ -413,10 +413,9 @@ setInterval(async () => {
   try {
     let fixtures;
     try {
-      fixtures = await fetchFixturesSnapshot();
+      fixtures = await db.fixture.findMany();
     } catch (e) {
-      // Just log and exit this tick if the network is down
-      console.warn("Oracle offline or network error in fetchFixturesSnapshot");
+      console.warn("Database error in settlement job", e);
       return;
     }
     
