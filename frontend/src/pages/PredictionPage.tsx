@@ -174,6 +174,24 @@ export default function PredictionPage() {
     }
   })
 
+  const displayEvents = liveEvents && liveEvents.length > 0 ? liveEvents : ((fixture as any)?.events || []);
+  let currentMinute = fixture?.minute || 0;
+  let currentHomeScore = fixture?.homeScore || 0;
+  let currentAwayScore = fixture?.awayScore || 0;
+  
+  if (displayEvents && displayEvents.length > 0) {
+    const sorted = [...displayEvents].sort((a: any, b: any) => (a.Clock?.Seconds || 0) - (b.Clock?.Seconds || 0));
+    const latestClockEvent = sorted.slice().reverse().find((e: any) => e.Clock);
+    if (latestClockEvent?.Clock?.Seconds) {
+      currentMinute = Math.floor(latestClockEvent.Clock.Seconds / 60);
+    }
+    const latestScoreEvent = sorted.slice().reverse().find((e: any) => e.Score);
+    if (latestScoreEvent?.Score) {
+      currentHomeScore = latestScoreEvent.Score.Participant1?.Total?.Goals ?? currentHomeScore;
+      currentAwayScore = latestScoreEvent.Score.Participant2?.Total?.Goals ?? currentAwayScore;
+    }
+  }
+
   if (isLoading || isLoadingMarkets) {
     return <div className="text-center p-12 text-text-secondary">Loading fixture data...</div>
   }
@@ -196,28 +214,30 @@ export default function PredictionPage() {
       </Link>
 
       <div className="glass-card p-8 relative overflow-hidden">
-        {fixture.state === 'Live' && (
-          <div className="absolute top-4 left-4">
-            <span className="live-badge">LIVE {fixture.minute}'</span>
-          </div>
-        )}
         <div className="text-center mb-4">
           <span className="text-sm font-medium px-3 py-1 bg-white/5 rounded-full text-text-secondary border border-white/10">
             {fixture.competition}
           </span>
         </div>
         <div className="flex items-center justify-center space-x-4 md:space-x-8">
-          <span className="text-2xl md:text-4xl font-bold text-text text-right flex-1">{fixture.home}</span>
-          <div className="flex flex-col items-center">
-            {fixture.state === 'Live' || fixture.state === 'Final' ? (
-              <span className="text-3xl md:text-5xl font-black text-accent tracking-tighter">
-                {fixture.homeScore} - {fixture.awayScore}
+          <div className="flex justify-between items-center px-4 w-full max-w-lg">
+            <div className="flex-1 text-right">
+              <h3 className="font-bold text-2xl md:text-3xl text-text">{fixture.home}</h3>
+            </div>
+            <div className="px-6 flex flex-col items-center">
+              <span className="text-3xl md:text-5xl font-black text-accent tracking-tighter tabular-nums">
+                {fixture.state === 'Scheduled' ? 'VS' : `${currentHomeScore} - ${currentAwayScore}`}
               </span>
-            ) : (
-              <span className="text-2xl font-bold text-text-secondary px-4 py-2 bg-white/5 rounded-xl">VS</span>
-            )}
+              {fixture.state === 'Live' && (
+                <span className="text-accent text-sm font-bold animate-pulse mt-1">
+                  LIVE {currentMinute}'
+                </span>
+              )}
+            </div>
+            <div className="flex-1 text-left">
+              <h3 className="font-bold text-2xl md:text-3xl text-text">{fixture.away}</h3>
+            </div>
           </div>
-          <span className="text-2xl md:text-4xl font-bold text-text text-left flex-1">{fixture.away}</span>
         </div>
         
         <div className="mt-8 border-t border-white/5 pt-6 flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">

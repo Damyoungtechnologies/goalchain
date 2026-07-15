@@ -154,7 +154,7 @@ export default function LiveMatchesPage() {
                       {fixture.state === 'Live' && (
                         <div className="flex flex-col items-center">
                           <span className="live-badge animate-pulse mb-1">LIVE</span>
-                          <span className="text-xs font-bold text-accent">{fixture.minute}'</span>
+                          {fixture.minute > 0 && <span className="text-xs font-bold text-accent">{fixture.minute}'</span>}
                         </div>
                       )}
                       <div className="flex-1">
