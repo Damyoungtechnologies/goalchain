@@ -21,7 +21,7 @@
     },
     {
       "id": "2f07a36c-ab44-415e-b0b4-279316df7f0e",
-      "fixtureId": 18237038,
+      "StartTime": 1784055600000, "FixtureId": 18237038,
       "fixtureName": "France vs Spain",
       "status": "active",
       "escrow": 0,
@@ -18108,7 +18108,7 @@
       "Participant1": "France",
       "Participant2Id": 3021,
       "Participant2": "Spain",
-      "FixtureId": 18237038,
+      "StartTime": 1784055600000, "FixtureId": 18237038,
       "Participant1IsHome": true,
       "GameState": 1,
       "aiInsights": [

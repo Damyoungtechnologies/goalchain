@@ -273,14 +273,27 @@ app.get("/api/house-wallet", async (req, res, next) => {
 // Background Oracle Poller
 setInterval(async () => {
   try {
-    let snapshots = [];
+    let oracleSnapshots = [];
     try {
-      snapshots = await fetchFixturesSnapshot();
+      oracleSnapshots = await fetchFixturesSnapshot();
     } catch (e) {
-      // Oracle offline for full snapshot, fallback to updating existing active matches
-      snapshots = (await db.fixture.findMany()).filter(f => f.GameState < 3);
+      // Oracle offline, will just use DB fixtures
     }
     
+    // Get all active fixtures from DB to ensure we don't drop matches missing from the latest snapshot
+    const dbFixtures = (await db.fixture.findMany()).filter(f => f.GameState < 3);
+    
+    // Merge Oracle snapshots with active DB fixtures
+    const fixturesMap = new Map();
+    for (const f of dbFixtures) {
+      fixturesMap.set(f.FixtureId, f);
+    }
+    for (const snap of oracleSnapshots) {
+      const existing = fixturesMap.get(snap.FixtureId) || {};
+      fixturesMap.set(snap.FixtureId, { ...existing, ...snap });
+    }
+    
+    const snapshots = Array.from(fixturesMap.values());
     const now = Date.now();
 
     for (const snap of snapshots) {
