@@ -309,7 +309,15 @@ setInterval(async () => {
       const fixtureData = { ...existingDbFixture, ...snap };
       
       // Dynamically detect live matches
-      if (fixtureData.StartTime && fixtureData.StartTime <= now && fixtureData.GameState < 3) {
+      let startTimeMs = fixtureData.StartTime;
+      if (startTimeMs && typeof startTimeMs === 'object') {
+        if (startTimeMs._seconds) startTimeMs = startTimeMs._seconds * 1000;
+        else if (typeof startTimeMs.toMillis === 'function') startTimeMs = startTimeMs.toMillis();
+      } else if (typeof startTimeMs === 'string') {
+        startTimeMs = parseInt(startTimeMs, 10) || Date.parse(startTimeMs);
+      }
+      
+      if (startTimeMs && startTimeMs <= now && fixtureData.GameState < 3) {
         fixtureData.GameState = 2; // Mark as live if started and not finished
       }
 
