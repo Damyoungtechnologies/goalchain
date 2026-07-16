@@ -133,7 +133,7 @@ export default function SettlementExplorerPage() {
                     <div>
                       <div className="flex items-center space-x-2 text-sm text-text-secondary mb-1">
                         <Clock className="w-4 h-4" />
-                        <span>Settled</span>
+                        <span>Prediction Placed</span>
                       </div>
                       <div className="text-text">
                         {new Date(settlement.timestamp).toLocaleString()}
