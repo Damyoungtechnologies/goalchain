@@ -90,6 +90,10 @@ export const db = {
   },
   get prediction() {
     return {
+      findUnique: async ({ where } = {}) => {
+        const results = await runQuery('predictions', where);
+        return results[0];
+      },
       findMany: async ({ where } = {}) => {
         return await runQuery('predictions', where);
       },
