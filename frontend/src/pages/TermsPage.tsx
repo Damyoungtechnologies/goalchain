@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react'
+import Footer from '../components/Footer'
 
 export default function TermsPage() {
   return (
@@ -56,6 +57,7 @@ export default function TermsPage() {
           </section>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }
