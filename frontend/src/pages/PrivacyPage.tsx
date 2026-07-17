@@ -3,8 +3,9 @@ import Footer from '../components/Footer'
 
 export default function PrivacyPage() {
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-      <div className="glass-card p-8 md:p-12">
+    <div className="w-full">
+      <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="glass-card p-8 md:p-12">
         <div className="flex items-center space-x-4 mb-8 border-b border-white/10 pb-8">
           <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
             <ShieldCheck className="w-8 h-8 text-accent" />
@@ -51,6 +52,7 @@ export default function PrivacyPage() {
             </p>
           </section>
         </div>
+      </div>
       </div>
       <Footer />
     </div>
